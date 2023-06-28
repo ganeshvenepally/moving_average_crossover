@@ -54,10 +54,10 @@ def MovingAverageCrossStrategy(stock_symbol, start_date, end_date, short_window,
     hold_return = ((final_value_hold - initial_cash) / initial_cash) * 100
     final_return = ((final_value - initial_cash) / initial_cash) * 100
 
-    st.write(f'Final portfolio value using strategy: {final_value}, Return: {final_return}%')
+    st.write(f'Final portfolio value using strategy: final_value:  {final_value} ')
     st.write(f'Final portfolio value using strategy: Return Percent: {final_return}%')
 
-    st.write(f'Final portfolio value using Buy and Hold: {final_value_hold}, Return: {hold_return}%')
+    st.write(f'Final portfolio value using Buy and Hold: final_value: {final_value_hold})
     st.write(f'Final portfolio value using Buy and Hold: Return Percent: {hold_return}%')
 
 
