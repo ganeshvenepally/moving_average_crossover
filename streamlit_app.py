@@ -53,31 +53,51 @@ def MovingAverageCrossStrategy(stock_symbol, start_date, end_date, short_window,
     final_value = cash_balance + stock_qty * stock_df['Close Price'].iloc[-1]
     print(f'Final portfolio value: {final_value}')
 
-    plt.figure(figsize = (20,10))
-    plt.tick_params(axis = 'both', labelsize = 14)
-    stock_df['Close Price'].plot(color = 'k', lw = 1, label = 'Close Price')  
-    stock_df[short_window_col].plot(color = 'b', lw = 1, label = short_window_col)
-    stock_df[long_window_col].plot(color = 'g', lw = 1, label = long_window_col)
+    # plt.figure(figsize = (20,10))
+    # plt.tick_params(axis = 'both', labelsize = 14)
+    # stock_df['Close Price'].plot(color = 'k', lw = 1, label = 'Close Price')  
+    # stock_df[short_window_col].plot(color = 'b', lw = 1, label = short_window_col)
+    # stock_df[long_window_col].plot(color = 'g', lw = 1, label = long_window_col)
 
-    plt.plot(stock_df[stock_df['Position'] == 1].index, 
-            stock_df[short_window_col][stock_df['Position'] == 1], 
-            '^', markersize = 15, color = 'g', alpha = 0.7, label = 'buy')
+    # plt.plot(stock_df[stock_df['Position'] == 1].index, 
+    #         stock_df[short_window_col][stock_df['Position'] == 1], 
+    #         '^', markersize = 15, color = 'g', alpha = 0.7, label = 'buy')
 
-    plt.plot(stock_df[stock_df['Position'] == -1].index, 
-            stock_df[short_window_col][stock_df['Position'] == -1], 
-            'v', markersize = 15, color = 'r', alpha = 0.7, label = 'sell')
+    # plt.plot(stock_df[stock_df['Position'] == -1].index, 
+    #         stock_df[short_window_col][stock_df['Position'] == -1], 
+    #         'v', markersize = 15, color = 'r', alpha = 0.7, label = 'sell')
     
-    plt.ylabel('Price in ₹', fontsize = 16 )
-    plt.xlabel('Date', fontsize = 16 )
-    plt.title(str(stock_symbol) + ' - ' + str(moving_avg) + ' Crossover', fontsize = 20)
+    # plt.ylabel('Price in ₹', fontsize = 16 )
+    # plt.xlabel('Date', fontsize = 16 )
+    # plt.title(str(stock_symbol) + ' - ' + str(moving_avg) + ' Crossover', fontsize = 20)
+    # plt.legend()
+    # plt.grid()
+    # plt.show()
+
+    # if display_table:
+    #     df_pos = stock_df.loc[(stock_df['Position'] == 1) | (stock_df['Position'] == -1)].copy()
+    #     df_pos['Position'] = df_pos['Position'].apply(lambda x: 'Buy' if x == 1 else 'Sell')
+    #     print(tabulate(df_pos, headers = 'keys', tablefmt = 'psql'))
+    #     fig, ax = plt.subplots(figsize=(20, 10))
+
+    ax.plot(stock_df['Close Price'], color='k', lw=1, label='Close Price')
+    ax.plot(stock_df[short_window_col], color='b', lw=1, label=short_window_col)
+    ax.plot(stock_df[long_window_col], color='g', lw=1, label=long_window_col)
+    ax.plot(stock_df[stock_df['Position'] == 1].index, stock_df[short_window_col][stock_df['Position'] == 1], '^', markersize=15, color='g', alpha=0.7, label='buy')
+    ax.plot(stock_df[stock_df['Position'] == -1].index, stock_df[short_window_col][stock_df['Position'] == -1], 'v', markersize=15, color='r', alpha=0.7, label='sell')
+
+    plt.ylabel('Price in ₹', fontsize=16)
+    plt.xlabel('Date', fontsize=16)
+    plt.title(str(stock_symbol) + ' - ' + str(moving_avg) + ' Crossover', fontsize=20)
     plt.legend()
     plt.grid()
-    plt.show()
+
+    st.pyplot(fig)  # Displaying the plot
 
     if display_table:
         df_pos = stock_df.loc[(stock_df['Position'] == 1) | (stock_df['Position'] == -1)].copy()
         df_pos['Position'] = df_pos['Position'].apply(lambda x: 'Buy' if x == 1 else 'Sell')
-        print(tabulate(df_pos, headers = 'keys', tablefmt = 'psql'))
+        st.table(df_pos)  # Displaying the table
 
 # UI Elements
 st.title("Moving Average Crossover Strategy Simulator")
