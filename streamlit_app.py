@@ -55,7 +55,11 @@ def MovingAverageCrossStrategy(stock_symbol, start_date, end_date, short_window,
     final_return = ((final_value - initial_cash) / initial_cash) * 100
 
     st.write(f'Final portfolio value using strategy: {final_value}, Return: {final_return}%')
+    st.write(f'Final portfolio value using strategy: Return Percent: {final_return}%')
+
     st.write(f'Final portfolio value using Buy and Hold: {final_value_hold}, Return: {hold_return}%')
+    st.write(f'Final portfolio value using Buy and Hold: Return Percent: {hold_return}%')
+
 
     fig = plt.figure(figsize=(20, 10))
     plt.tick_params(axis='both', labelsize=14)
