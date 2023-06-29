@@ -35,6 +35,11 @@ def MovingAverageCrossStrategy(stock_symbol, start_date, end_date, short_window,
     elif moving_avg == 'BOTH':
         stock_df['Signal'] = np.where((stock_df['Signal_SMA'] == 1.0) & (stock_df['Signal_EMA'] == 1.0), 1.0, 0.0)
         stock_df['Signal'] = np.where((stock_df['Signal_SMA'] == -1.0) | (stock_df['Signal_EMA'] == -1.0), -1.0, stock_df['Signal'])
+        short_window_col = short_window_sma  # Default to SMA for plotting
+        long_window_col = long_window_sma  # Default to SMA for plotting
+    else:
+        raise ValueError("Invalid value for moving_avg. Expected 'SMA', 'EMA' or 'BOTH'")
+
 
     print("short_window_col:", short_window_col)
     print("stock_df columns:", stock_df.columns)
