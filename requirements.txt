@@ -4,4 +4,4 @@ matplotlib
 tabulate
 yfinance
 streamlit
-quantstat
+quantstats 
