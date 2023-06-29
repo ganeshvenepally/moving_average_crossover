@@ -77,7 +77,7 @@ if st.button('Run Simulation'):
     returns = results['Portfolio Returns'].dropna()
 
     # Display quantstats report
-    st.write(qs.reports.html(returns, "SPY"))
+    st.write(qs.reports.metrics(returns, mode='full'))
 
     # Counting the number of trades
     df_pos = results.loc[(results['Position'] == 1) | (results['Position'] == -1)].copy()
