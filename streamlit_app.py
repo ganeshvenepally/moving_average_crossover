@@ -93,15 +93,14 @@ def MovingAverageCrossStrategy(stock_symbol, start_date, end_date, short_window,
 
 # Streamlit app
 st.title("Moving Average Crossover Strategy Simulator")
-stock_symbol = st.text_input("Stock Symbol:", 'ASIANPAINT.NS')
-start_date = st.date_input("Start Date:", pd.to_datetime('2022-01-31'))
-end_date = st.date_input("End Date:", pd.to_datetime('2023-06-16'))
+stock_symbol = st.text_input("Stock Symbol:", 'QQQ')
+start_date = st.date_input("Start Date:", pd.to_datetime('2022-01-01'))
+end_date = st.date_input("End Date:", pd.to_datetime('2023-08-16'))
 short_window = st.slider("Short Window:", min_value=1, max_value=50, value=5, step=1)
 long_window = st.slider("Long Window:", min_value=1, max_value=200, value=20, step=1)
-moving_avg = st.selectbox("Moving Average Type:", ('SMA', 'EMA'), index=0)
-display_table = st.checkbox("Display Table?", value=True)
-initial_cash = st.slider("Initial Cash:", min_value=10000, max_value=100000, value=50000, step=1000)
 moving_avg = st.selectbox("Moving Average Type:", ('SMA', 'EMA', 'BOTH'), index=0)
+display_table = st.checkbox("Display Table?", value=True)
+initial_cash = st.slider("Initial Cash:", min_value=10000, max_value=100000, value=10000, step=1000)
 
 if st.button('Run Simulation'):
     MovingAverageCrossStrategy(stock_symbol, start_date, end_date, short_window, long_window, moving_avg, display_table, initial_cash)
