@@ -21,21 +21,17 @@ def MovingAverageCrossStrategy(stock_symbol, start_date, end_date, short_window,
     stock_df[short_window_ema] = stock_df['Close Price'].ewm(span = short_window, adjust = False).mean()
     stock_df[long_window_ema] = stock_df['Close Price'].ewm(span = long_window, adjust = False).mean()
 
+    stock_df['Signal_SMA'] = np.where(stock_df[short_window_sma] > stock_df[long_window_sma], 1.0, -1.0)
+    stock_df['Signal_EMA'] = np.where(stock_df[short_window_ema] > stock_df[long_window_ema], 1.0, -1.0)
+
     if moving_avg == 'SMA':
-        stock_df['Signal'] = np.where(stock_df[short_window_sma] > stock_df[long_window_sma], 1.0, 0.0)
-        stock_df['Signal'] = np.where(stock_df[short_window_sma] < stock_df[long_window_sma], -1.0, stock_df['Signal'])
+        stock_df['Signal'] = stock_df['Signal_SMA']
     elif moving_avg == 'EMA':
-        stock_df['Signal'] = np.where(stock_df[short_window_ema] > stock_df[long_window_ema], 1.0, 0.0)
-        stock_df['Signal'] = np.where(stock_df[short_window_ema] < stock_df[long_window_ema], -1.0, stock_df['Signal'])
+        stock_df['Signal'] = stock_df['Signal_EMA']
     elif moving_avg == 'BOTH':
-        stock_df['Signal'] = np.where((stock_df[short_window_sma] > stock_df[long_window_sma]) & (stock_df[short_window_ema] > stock_df[long_window_ema]), 1.0, 0.0)
-        stock_df['Signal'] = np.where((stock_df[short_window_sma] < stock_df[long_window_sma]) | (stock_df[short_window_ema] < stock_df[long_window_ema]), -1.0, stock_df['Signal'])
+        stock_df['Signal'] = np.where((stock_df['Signal_SMA'] == 1.0) & (stock_df['Signal_EMA'] == 1.0), 1.0, 0.0)
+        stock_df['Signal'] = np.where((stock_df['Signal_SMA'] == -1.0) | (stock_df['Signal_EMA'] == -1.0), -1.0, stock_df['Signal'])
 
-    stock_df['Position'] = stock_df['Signal'].diff()
-
-
-    stock_df['Signal'] = 0.0  
-    stock_df['Signal'] = np.where(stock_df[short_window_col] > stock_df[long_window_col], 1.0, 0.0)
     stock_df['Position'] = stock_df['Signal'].diff()
 
     # Simulate the trading
