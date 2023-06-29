@@ -23,15 +23,15 @@ def MovingAverageCrossStrategy(stock_symbol, start_date, end_date, short_window,
 
     if moving_avg == 'SMA':
         stock_df['Signal'] = np.where(stock_df[short_window_sma] > stock_df[long_window_sma], 1.0, 0.0)
+        stock_df['Signal'] = np.where(stock_df[short_window_sma] < stock_df[long_window_sma], -1.0, stock_df['Signal'])
     elif moving_avg == 'EMA':
         stock_df['Signal'] = np.where(stock_df[short_window_ema] > stock_df[long_window_ema], 1.0, 0.0)
+        stock_df['Signal'] = np.where(stock_df[short_window_ema] < stock_df[long_window_ema], -1.0, stock_df['Signal'])
     elif moving_avg == 'BOTH':
-        stock_df['Buy_Signal'] = np.where((stock_df[short_window_sma] > stock_df[long_window_sma]) & (stock_df[short_window_ema] > stock_df[long_window_ema]), 1.0, 0.0)
-        stock_df['Sell_Signal'] = np.where((stock_df[short_window_sma] < stock_df[long_window_sma]) | (stock_df[short_window_ema] < stock_df[long_window_ema]), -1.0, 0.0)
-        stock_df['Signal'] = stock_df['Buy_Signal'] + stock_df['Sell_Signal']
+        stock_df['Signal'] = np.where((stock_df[short_window_sma] > stock_df[long_window_sma]) & (stock_df[short_window_ema] > stock_df[long_window_ema]), 1.0, 0.0)
+        stock_df['Signal'] = np.where((stock_df[short_window_sma] < stock_df[long_window_sma]) | (stock_df[short_window_ema] < stock_df[long_window_ema]), -1.0, stock_df['Signal'])
 
     stock_df['Position'] = stock_df['Signal'].diff()
-
 
 
     stock_df['Signal'] = 0.0  
