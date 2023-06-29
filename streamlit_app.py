@@ -36,6 +36,9 @@ def MovingAverageCrossStrategy(stock_symbol, start_date, end_date, short_window,
         stock_df['Signal'] = np.where((stock_df['Signal_SMA'] == 1.0) & (stock_df['Signal_EMA'] == 1.0), 1.0, 0.0)
         stock_df['Signal'] = np.where((stock_df['Signal_SMA'] == -1.0) | (stock_df['Signal_EMA'] == -1.0), -1.0, stock_df['Signal'])
 
+    print("short_window_col:", short_window_col)
+    print("stock_df columns:", stock_df.columns)
+
     stock_df['Position'] = stock_df['Signal'].diff()
 
     # The part where you plot the columns
