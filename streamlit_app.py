@@ -55,6 +55,42 @@ def MovingAverageCrossStrategy(stock_symbol, start_date, end_date, short_window,
         stock_df.loc[stock_df.index[i], 'Cash'] = cash_balance
     final_value = cash_balance + stock_qty * stock_df['Close Price'].iloc[-1]
 
+    # Calculate Buy and Hold Strategy
+    initial_qty = initial_cash // stock_df['Close Price'].iloc[0]
+    final_value_hold = initial_qty * stock_df['Close Price'].iloc[-1]
+    hold_return = ((final_value_hold - initial_cash) / initial_cash) * 100
+    final_return = ((final_value - initial_cash) / initial_cash) * 100
+
+    st.write(f'Final portfolio value using strategy: final_value:  {final_value} ')
+    st.write(f'Final portfolio value using strategy: Return Percent: {final_return}%')
+
+    st.write(f'Final portfolio value using Buy and Hold: final_value: {final_value_hold}')
+    st.write(f'Final portfolio value using Buy and Hold: Return Percent: {hold_return}%')
+
+    fig = plt.figure(figsize=(20, 10))
+    plt.tick_params(axis='both', labelsize=14)
+    stock_df['Close Price'].plot(color='k', lw=1, label='Close Price')  
+    if moving_avg == 'SMA' or moving_avg == 'Both':
+        stock_df[short_window_col_sma].plot(color='b', lw=1, label=short_window_col_sma)
+        stock_df[long_window_col_sma].plot(color='g', lw=1, label=long_window_col_sma)
+    if moving_avg == 'EMA' or moving_avg == 'Both':
+        stock_df[short_window_col_ema].plot(color='r', lw=1, label=short_window_col_ema)
+        stock_df[long_window_col_ema].plot(color='y', lw=1, label=long_window_col_ema)
+    plt.plot(stock_df[stock_df['Position'] == 1].index, stock_df[short_window_col_sma][stock_df['Position'] == 1], '^', markersize=15, color='g', alpha=0.7, label='buy')
+    plt.plot(stock_df[stock_df['Position'] == -1].index, stock_df[short_window_col_sma][stock_df['Position'] == -1], 'v', markersize=15, color='r', alpha=0.7, label='sell')
+    plt.ylabel('Price in ₹', fontsize=16)
+    plt.xlabel('Date', fontsize=16)
+    plt.title(str(stock_symbol) + ' - ' + str(moving_avg) + ' Crossover', fontsize=20)
+    plt.legend()
+    plt.grid()
+    st.pyplot(fig)
+
+    if display_table:
+        df_pos = stock_df.loc[(stock_df['Position'] == 1) | (stock_df['Position'] == -1)].copy()
+        df_pos['Position'] = df_pos['Position'].apply(lambda x: 'Buy' if x == 1 else 'Sell')
+        df_pos.style.format({"Return": "{:.2f}%"}).background_gradient(subset=['Return'], cmap=('Reds' if x < 0 else 'Greens' for x in df_pos['Return']))
+        st.dataframe(df_pos)
+
     # Calculate portfolio returns from prices
     stock_df['Portfolio Returns'] = stock_df['Close Price'].pct_change()
 
@@ -63,25 +99,17 @@ def MovingAverageCrossStrategy(stock_symbol, start_date, end_date, short_window,
 st.title("Moving Average Crossover Strategy Simulator")
 stock_symbol = st.text_input("Stock Symbol:", 'ASIANPAINT.NS')
 start_date = st.date_input("Start Date:", pd.to_datetime('2022-01-31'))
-end_date = st.date_input("End Date:", pd.to_datetime('2023-06-16'))
-short_window = st.slider("Short Window:", min_value=1, max_value=50, value=5, step=1)
-long_window = st.slider("Long Window:", min_value=1, max_value=200, value=20, step=1)
-moving_avg = st.selectbox("Moving Average Type:", ('SMA', 'EMA', 'Both'), index=0)
-display_table = st.checkbox("Display Table?", value=True)
-initial_cash = st.slider("Initial Cash:", min_value=10000, max_value=100000, value=50000, step=1000)
+end_date = st.date_input("End Date:", pd.to_datetime('2023-06-01'))
+short_window = st.slider('Short window period:', min_value=5, max_value=50, value=20)
+long_window = st.slider('Long window period:', min_value=50, max_value=200, value=100)
+moving_avg = st.selectbox('Moving Average Type:', options=['SMA', 'EMA', 'Both'], index=0)
+display_table = st.checkbox("Display Buy/Sell Transactions Table", value=True)
+initial_cash = st.number_input("Initial Cash:", value=100000.0, step=10000.0)
 
-if st.button('Run Simulation'):
-    results, final_value = MovingAverageCrossStrategy(stock_symbol, start_date, end_date, short_window, long_window, moving_avg, display_table, initial_cash)
+data, final_value = MovingAverageCrossStrategy(stock_symbol, start_date, end_date, short_window, long_window, moving_avg, display_table, initial_cash)
 
-    # Get only the returns and drop missing values
-    returns = results['Portfolio Returns'].dropna()
-
-    # Display quantstats report
-    st.write(qs.reports.metrics(returns, mode='full'))
-
-    # Counting the number of trades
-    df_pos = results.loc[(results['Position'] == 1) | (results['Position'] == -1)].copy()
-    num_trades = df_pos['Position'].value_counts()
-
-    st.write(f"Number of Buy trades: {num_trades[1]}")
-    st.write(f"Number of Sell trades: {num_trades[-1]}")
+# QuantStat report
+returns = data['Portfolio Returns']
+returns.fillna(0, inplace=True)
+st.header("QuantStat Report")
+st.write(qs.reports.full(returns, "SPY"))
