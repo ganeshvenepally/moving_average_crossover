@@ -11,45 +11,25 @@ def MovingAverageCrossStrategy(stock_symbol, start_date, end_date, short_window,
     stock_df = pd.DataFrame(stock_df)
     stock_df.columns = {'Close Price'}
 
-    short_window_sma = str(short_window) + '_SMA'
-    long_window_sma = str(long_window) + '_SMA'
-    short_window_ema = str(short_window) + '_EMA'
-    long_window_ema = str(long_window) + '_EMA'
+    short_window_col_sma = str(short_window) + '_SMA'
+    long_window_col_sma = str(long_window) + '_SMA'
+    short_window_col_ema = str(short_window) + '_EMA'
+    long_window_col_ema = str(long_window) + '_EMA'
 
-    stock_df[short_window_sma] = stock_df['Close Price'].rolling(window = short_window, min_periods = 1).mean()
-    stock_df[long_window_sma] = stock_df['Close Price'].rolling(window = long_window, min_periods = 1).mean()
-    stock_df[short_window_ema] = stock_df['Close Price'].ewm(span = short_window, adjust = False).mean()
-    stock_df[long_window_ema] = stock_df['Close Price'].ewm(span = long_window, adjust = False).mean()
-
-    stock_df['Signal_SMA'] = np.where(stock_df[short_window_sma] > stock_df[long_window_sma], 1.0, -1.0)
-    stock_df['Signal_EMA'] = np.where(stock_df[short_window_ema] > stock_df[long_window_ema], 1.0, -1.0)
+    stock_df[short_window_col_sma] = stock_df['Close Price'].rolling(window = short_window, min_periods = 1).mean()
+    stock_df[long_window_col_sma] = stock_df['Close Price'].rolling(window = long_window, min_periods = 1).mean()
+    stock_df[short_window_col_ema] = stock_df['Close Price'].ewm(span = short_window, adjust = False).mean()
+    stock_df[long_window_col_ema] = stock_df['Close Price'].ewm(span = long_window, adjust = False).mean()
 
     if moving_avg == 'SMA':
-        stock_df['Signal'] = stock_df['Signal_SMA']
-        short_window_col = short_window_sma
-        long_window_col = long_window_sma
+        stock_df['Signal'] = np.where(stock_df[short_window_col_sma] > stock_df[long_window_col_sma], 1.0, 0.0)
     elif moving_avg == 'EMA':
-        stock_df['Signal'] = stock_df['Signal_EMA']
-        short_window_col = short_window_ema
-        long_window_col = long_window_ema
-    elif moving_avg == 'BOTH':
-        stock_df['Signal'] = np.where((stock_df['Signal_SMA'] == 1.0) & (stock_df['Signal_EMA'] == 1.0), 1.0, 0.0)
-        stock_df['Signal'] = np.where((stock_df['Signal_SMA'] == -1.0) | (stock_df['Signal_EMA'] == -1.0), -1.0, stock_df['Signal'])
-        short_window_col = short_window_sma  # Default to SMA for plotting
-        long_window_col = long_window_sma  # Default to SMA for plotting
-    else:
-        raise ValueError("Invalid value for moving_avg. Expected 'SMA', 'EMA' or 'BOTH'")
-
-
-    print("short_window_col:", short_window_col)
-    print("stock_df columns:", stock_df.columns)
-
+        stock_df['Signal'] = np.where(stock_df[short_window_col_ema] > stock_df[long_window_col_ema], 1.0, 0.0)
+    elif moving_avg == 'Both':
+        stock_df['Signal'] = np.where(((stock_df[short_window_col_sma] > stock_df[long_window_col_sma]) & 
+                                        (stock_df[short_window_col_ema] > stock_df[long_window_col_ema])), 1.0, 0.0)
+    
     stock_df['Position'] = stock_df['Signal'].diff()
-
-    # The part where you plot the columns
-    stock_df[short_window_col].plot(color='b', lw=1, label=short_window_col)
-    stock_df[long_window_col].plot(color='r', lw=1, label=long_window_col)
-
 
     # Simulate the trading
     cash_balance = initial_cash
@@ -86,14 +66,17 @@ def MovingAverageCrossStrategy(stock_symbol, start_date, end_date, short_window,
     st.write(f'Final portfolio value using Buy and Hold: final_value: {final_value_hold}')
     st.write(f'Final portfolio value using Buy and Hold: Return Percent: {hold_return}%')
 
-
     fig = plt.figure(figsize=(20, 10))
     plt.tick_params(axis='both', labelsize=14)
     stock_df['Close Price'].plot(color='k', lw=1, label='Close Price')  
-    stock_df[short_window_col].plot(color='b', lw=1, label=short_window_col)
-    stock_df[long_window_col].plot(color='g', lw=1, label=long_window_col)
-    plt.plot(stock_df[stock_df['Position'] == 1].index, stock_df[short_window_col][stock_df['Position'] == 1], '^', markersize=15, color='g', alpha=0.7, label='buy')
-    plt.plot(stock_df[stock_df['Position'] == -1].index, stock_df[short_window_col][stock_df['Position'] == -1], 'v', markersize=15, color='r', alpha=0.7, label='sell')
+    if moving_avg == 'SMA' or moving_avg == 'Both':
+        stock_df[short_window_col_sma].plot(color='b', lw=1, label=short_window_col_sma)
+        stock_df[long_window_col_sma].plot(color='g', lw=1, label=long_window_col_sma)
+    if moving_avg == 'EMA' or moving_avg == 'Both':
+        stock_df[short_window_col_ema].plot(color='r', lw=1, label=short_window_col_ema)
+        stock_df[long_window_col_ema].plot(color='y', lw=1, label=long_window_col_ema)
+    plt.plot(stock_df[stock_df['Position'] == 1].index, stock_df['Close Price'][stock_df['Position'] == 1], '^', markersize=15, color='g', alpha=0.7, label='buy')
+    plt.plot(stock_df[stock_df['Position'] == -1].index, stock_df['Close Price'][stock_df['Position'] == -1], 'v', markersize=15, color='r', alpha=0.7, label='sell')
     plt.ylabel('Price in ₹', fontsize=16)
     plt.xlabel('Date', fontsize=16)
     plt.title(str(stock_symbol) + ' - ' + str(moving_avg) + ' Crossover', fontsize=20)
@@ -109,14 +92,14 @@ def MovingAverageCrossStrategy(stock_symbol, start_date, end_date, short_window,
 
 # Streamlit app
 st.title("Moving Average Crossover Strategy Simulator")
-stock_symbol = st.text_input("Stock Symbol:", 'QQQ')
-start_date = st.date_input("Start Date:", pd.to_datetime('2022-01-01'))
-end_date = st.date_input("End Date:", pd.to_datetime('2023-08-16'))
+stock_symbol = st.text_input("Stock Symbol:", 'ASIANPAINT.NS')
+start_date = st.date_input("Start Date:", pd.to_datetime('2022-01-31'))
+end_date = st.date_input("End Date:", pd.to_datetime('2023-06-16'))
 short_window = st.slider("Short Window:", min_value=1, max_value=50, value=5, step=1)
 long_window = st.slider("Long Window:", min_value=1, max_value=200, value=20, step=1)
-moving_avg = st.selectbox("Moving Average Type:", ('SMA', 'EMA', 'BOTH'), index=0)
+moving_avg = st.selectbox("Moving Average Type:", ('SMA', 'EMA', 'Both'), index=0)
 display_table = st.checkbox("Display Table?", value=True)
-initial_cash = st.slider("Initial Cash:", min_value=10000, max_value=100000, value=10000, step=1000)
+initial_cash = st.slider("Initial Cash:", min_value=10000, max_value=100000, value=50000, step=1000)
 
 if st.button('Run Simulation'):
     MovingAverageCrossStrategy(stock_symbol, start_date, end_date, short_window, long_window, moving_avg, display_table, initial_cash)
