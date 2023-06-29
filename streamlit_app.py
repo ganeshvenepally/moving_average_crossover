@@ -3,6 +3,8 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import yfinance as yf
 import streamlit as st
+import quantstats as qs
+
 
 def MovingAverageCrossStrategy(stock_symbol, start_date, end_date, short_window, long_window, moving_avg, display_table, initial_cash):
     # Get the stock data
