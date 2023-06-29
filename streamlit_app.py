@@ -26,13 +26,22 @@ def MovingAverageCrossStrategy(stock_symbol, start_date, end_date, short_window,
 
     if moving_avg == 'SMA':
         stock_df['Signal'] = stock_df['Signal_SMA']
+        short_window_col = short_window_sma
+        long_window_col = long_window_sma
     elif moving_avg == 'EMA':
         stock_df['Signal'] = stock_df['Signal_EMA']
+        short_window_col = short_window_ema
+        long_window_col = long_window_ema
     elif moving_avg == 'BOTH':
         stock_df['Signal'] = np.where((stock_df['Signal_SMA'] == 1.0) & (stock_df['Signal_EMA'] == 1.0), 1.0, 0.0)
         stock_df['Signal'] = np.where((stock_df['Signal_SMA'] == -1.0) | (stock_df['Signal_EMA'] == -1.0), -1.0, stock_df['Signal'])
 
     stock_df['Position'] = stock_df['Signal'].diff()
+
+    # The part where you plot the columns
+    stock_df[short_window_col].plot(color='b', lw=1, label=short_window_col)
+    stock_df[long_window_col].plot(color='r', lw=1, label=long_window_col)
+
 
     # Simulate the trading
     cash_balance = initial_cash
