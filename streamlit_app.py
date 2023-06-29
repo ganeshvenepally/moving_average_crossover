@@ -4,7 +4,8 @@ import matplotlib.pyplot as plt
 import yfinance as yf
 import streamlit as st
 import quantstats as qs
- 
+ from IPython.core.display import display as iDisplay, HTML as iHTML
+
 def MovingAverageCrossStrategy(stock_symbol, start_date, end_date, short_window, long_window, moving_avg, display_table, initial_cash):
     # Get the stock data
     stock = yf.Ticker(stock_symbol)
