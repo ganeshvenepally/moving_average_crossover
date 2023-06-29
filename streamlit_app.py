@@ -73,6 +73,11 @@ def MovingAverageCrossStrategy(stock_symbol, start_date, end_date, short_window,
     st.write(f"Number of Buy trades: {num_trades[1]}")
     st.write(f"Number of Sell trades: {num_trades[-1]}")
 
+    # Calculate portfolio returns from prices
+    stock_df['Portfolio Returns'] = stock_df['Close Price'].pct_change()
+
+    return stock_df
+    
     fig = plt.figure(figsize=(20, 10))
     plt.tick_params(axis='both', labelsize=14)
     stock_df['Close Price'].plot(color='k', lw=1, label='Close Price')  
@@ -110,3 +115,15 @@ initial_cash = st.slider("Initial Cash:", min_value=10000, max_value=100000, val
 
 if st.button('Run Simulation'):
     MovingAverageCrossStrategy(stock_symbol, start_date, end_date, short_window, long_window, moving_avg, display_table, initial_cash)
+        # Get only the returns and drop missing values
+    returns = results['Portfolio Returns'].dropna()
+
+    # Display quantstats report
+    st.write(qs.reports.html(returns, "SPY"))
+
+    # Counting the number of trades
+    df_pos = results.loc[(results['Position'] == 1) | (results['Position'] == -1)].copy()
+    num_trades = df_pos['Position'].value_counts()
+
+    st.write(f"Number of Buy trades: {num_trades[1]}")
+    st.write(f"Number of Sell trades: {num_trades[-1]}")
