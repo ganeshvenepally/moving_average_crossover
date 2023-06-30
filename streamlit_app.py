@@ -1,67 +1,92 @@
-023-06-30 02:58:34.162 Uncaught app exception
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import yfinance as yf
+import streamlit as st
+import quantstats as qs
 
-Traceback (most recent call last):
-
-  File "/home/appuser/venv/lib/python3.9/site-packages/streamlit/runtime/scriptrunner/script_runner.py", line 552, in _run_script
-
-    exec(code, module.__dict__)
-
-  File "/app/moving_average_crossover/streamlit_app.py", line 75, in <module>
-
-    portfolio, stock_df, signals = MovingAverageCrossStrategy(stock_symbol, start_date, end_date, short_window, long_window, moving_avg, display_table, initial_cash)
-
-  File "/app/moving_average_crossover/streamlit_app.py", line 11, in MovingAverageCrossStrategy
-
+def MovingAverageCrossStrategy(stock_symbol, start_date, end_date, short_window, long_window, moving_avg, display_table, initial_cash):
+    # Get the stock data
+    stock = yf.Ticker(stock_symbol)
     stock_df = stock.history(start=start_date, end=end_date)['Close']
+    stock_df = pd.DataFrame(stock_df)
+    stock_df.columns = {'Close Price'}
 
-  File "/home/appuser/venv/lib/python3.9/site-packages/yfinance/utils.py", line 105, in wrapper
+    short_window_col_sma = str(short_window) + '_SMA'
+    long_window_col_sma = str(long_window) + '_SMA'
+    short_window_col_ema = str(short_window) + '_EMA'
+    long_window_col_ema = str(long_window) + '_EMA'
+    
+    # Calculating SMA
+    stock_df[short_window_col_sma] = stock_df['Close Price'].rolling(window = short_window, min_periods = 1).mean()
+    stock_df[long_window_col_sma] = stock_df['Close Price'].rolling(window = long_window, min_periods = 1).mean()
+    
+    # Calculating EMA
+    stock_df[short_window_col_ema] = stock_df['Close Price'].ewm(span = short_window, adjust = False).mean()
+    stock_df[long_window_col_ema] = stock_df['Close Price'].ewm(span = long_window, adjust = False).mean()
 
-    result = func(*args, **kwargs)
+    if moving_avg == 'SMA':
+        stock_df['Signal'] = np.where(stock_df[short_window_col_sma] > stock_df[long_window_col_sma], 1.0, 0.0)
+    elif moving_avg == 'EMA':
+        stock_df['Signal'] = np.where(stock_df[short_window_col_ema] > stock_df[long_window_col_ema], 1.0, 0.0)
+    elif moving_avg == 'Both':
+        stock_df['Signal'] = np.where((stock_df[short_window_col_sma] > stock_df[long_window_col_sma]) & (stock_df[short_window_col_ema] > stock_df[long_window_col_ema]), 1.0, 0.0)
+        
+    stock_df['Position'] = stock_df['Signal'].diff()
+    
+    # Create portfolio to store asset data
+    portfolio = pd.DataFrame(index=stock_df.index, data={'Asset': stock_df['Close Price']})
+    
+    # Buy/Sell signals
+    signals = pd.concat([
+        pd.DataFrame({"Price": stock_df.loc[stock_df["Position"] == 1, "Close Price"],
+                      "Regime": stock_df.loc[stock_df["Position"] == 1, "Signal"],
+                      "Signal": "Buy"}),
+        pd.DataFrame({"Price": stock_df.loc[stock_df["Position"] == -1, "Close Price"],
+                      "Regime": stock_df.loc[stock_df["Position"] == -1, "Signal"],
+                      "Signal": "Sell"}),
+    ])
+    signals.sort_index(inplace=True)
+    
+    # Add signals to portfolio
+    portfolio = portfolio.join(signals[["Signal"]], how="outer").fillna(value={"Signal": "Wait"})
+    
+    # Add "Shares" column to portfolio
+    portfolio["Shares"] = [initial_cash/portfolio.loc[row, "Asset"] if portfolio.loc[row, "Signal"] == "Buy" else 0 for row in portfolio.index]
+    
+    # Add "Cash" column to portfolio
+    portfolio['Cash'] = initial_cash - (portfolio['Shares'] * portfolio['Asset'])
+    
+    # Add "Total" column to portfolio
+    portfolio['Total'] = portfolio['Shares'] * portfolio['Asset'] + portfolio['Cash']
+    
+    return portfolio, stock_df, signals
 
-  File "/home/appuser/venv/lib/python3.9/site-packages/yfinance/base.py", line 153, in history
+# User inputs
+stock_symbol = 'AAPL'
+start_date = '2020-01-01'
+end_date = '2023-06-30'
+short_window = 50
+long_window = 200
+moving_avg = 'Both'
+display_table = True
+initial_cash = 100000.0
 
-    tz = self._get_ticker_tz(proxy, timeout)
+portfolio, stock_df, signals = MovingAverageCrossStrategy(stock_symbol, start_date, end_date, short_window, long_window, moving_avg, display_table, initial_cash)
 
-  File "/home/appuser/venv/lib/python3.9/site-packages/yfinance/base.py", line 1422, in _get_ticker_tz
+# Create quantstats report
+returns = portfolio['Total'].pct_change().iloc[1:]
+qs.reports.html(returns, output='quantstats.html')
 
-    cache.store(self.ticker, tz)
+# Create plot
+stock_df['Close Price'].plot(color = 'blue', label= 'Close Price')
+stock_df[str(short_window)+'_SMA'].plot(color = 'red', label = 'Short-window SMA')
+stock_df[str(long_window)+'_SMA'].plot(color = 'green', label = 'Long-window SMA')
+stock_df[str(short_window)+'_EMA'].plot(color = 'orange', label = 'Short-window EMA')
+stock_df[str(long_window)+'_EMA'].plot(color = 'magenta', label = 'Long-window EMA')
+plt.legend()
+plt.show()
 
-  File "/home/appuser/venv/lib/python3.9/site-packages/yfinance/utils.py", line 984, in store
-
-    raise Exception("Tkr {} tz already in cache".format(tkr))
-
-Exception: Tkr AAPL tz already in cache
-
-2023-06-30 02:58:34.447 Uncaught app exception
-
-Traceback (most recent call last):
-
-  File "/home/appuser/venv/lib/python3.9/site-packages/streamlit/runtime/scriptrunner/script_runner.py", line 552, in _run_script
-
-    exec(code, module.__dict__)
-
-  File "/app/moving_average_crossover/streamlit_app.py", line 75, in <module>
-
-    portfolio, stock_df, signals = MovingAverageCrossStrategy(stock_symbol, start_date, end_date, short_window, long_window, moving_avg, display_table, initial_cash)
-
-  File "/app/moving_average_crossover/streamlit_app.py", line 55, in MovingAverageCrossStrategy
-
-    portfolio["Shares"] = [portfolio.loc[row, "Signal"] == "Buy" and 1 or portfolio.loc[row, "Signal"] == "Sell" and 0 or portfolio["Shares"][row - 1] for row in np.arange(len(portfolio))]
-
-  File "/app/moving_average_crossover/streamlit_app.py", line 55, in <listcomp>
-
-    portfolio["Shares"] = [portfolio.loc[row, "Signal"] == "Buy" and 1 or portfolio.loc[row, "Signal"] == "Sell" and 0 or portfolio["Shares"][row - 1] for row in np.arange(len(portfolio))]
-
-  File "/home/appuser/venv/lib/python3.9/site-packages/pandas/core/indexing.py", line 1096, in __getitem__
-
-    return self.obj._get_value(*key, takeable=self._takeable)
-
-  File "/home/appuser/venv/lib/python3.9/site-packages/pandas/core/frame.py", line 3877, in _get_value
-
-    row = self.index.get_loc(index)
-
-  File "/home/appuser/venv/lib/python3.9/site-packages/pandas/core/indexes/datetimes.py", line 581, in get_loc
-
-    raise KeyError(key)
-
-KeyError: 0
+# Show the transaction table
+if display_table:
+    print(signals)
