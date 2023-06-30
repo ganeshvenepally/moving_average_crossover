@@ -111,6 +111,25 @@ def MovingAverageCrossStrategy(stock_symbol, start_date, end_date, short_window,
     plt.grid()
     st.pyplot(fig)
 
+    # Calculate Drawdown
+    stock_df['Portfolio Value'] = stock_df['Cash'] + (stock_df['Shares'] * stock_df['Close Price'])
+    stock_df['Running Max'] = np.maximum.accumulate(stock_df['Portfolio Value'])
+    stock_df['Drawdown'] = stock_df['Running Max'] - stock_df['Portfolio Value']
+    stock_df['Drawdown Percent'] = stock_df['Drawdown'] / stock_df['Running Max'] * 100
+
+    # Plotting Drawdown
+    fig, ax = plt.subplots(figsize=(15, 7))
+    plt.fill_between(stock_df.index, stock_df['Drawdown Percent'], color='red', alpha=0.3)
+    plt.title('Portfolio Drawdown')
+    plt.show()
+
+    # Print Drawdown stats
+    max_dd = np.max(stock_df['Drawdown Percent'])
+    print("Maximum Drawdown: %.2f%%" % max_dd)
+    st.write(f"Maximum Drawdown: {max_dd:.2f}%")
+
+    return [moving_avg, final_value, '{:.2f}%'.format(final_return), final_value_hold, '{:.2f}%'.format(hold_return), num_trades[1], num_trades[-1], '{:.2f}%'.format(max_dd)]
+
     if display_table:
         df_pos = stock_df.loc[(stock_df['Position'] == 1) | (stock_df['Position'] == -1)].copy()
         df_pos['Position'] = df_pos['Position'].apply(lambda x: 'Buy' if x == 1 else 'Sell')
