@@ -84,10 +84,10 @@ def MovingAverageCrossStrategy(stock_symbol, start_date, end_date, short_window,
     num_trades = df_pos['Position'].value_counts()
 
     st.write(f'Final portfolio value using strategy: final_value:  {final_value} ')
-    st.write(f'Final portfolio value using strategy: Return Percent: {final_return}%')
+    st.write(f'Final portfolio value using strategy: Return Percent: {final_return[2}%')
 
     st.write(f'Final portfolio value using Buy and Hold: final_value: {final_value_hold}')
-    st.write(f'Final portfolio value using Buy and Hold: Return Percent: {hold_return}%')
+    st.write(f'Final portfolio value using Buy and Hold: Return Percent: {hold_return[2}%')
 
     st.write(f"Number of Buy trades: {num_trades[1]}")
     st.write(f"Number of Sell trades: {num_trades[-1]}")
