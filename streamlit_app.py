@@ -5,11 +5,15 @@ import yfinance as yf
 import streamlit as st
 
 def run_simulations(stock_symbol, start_date, end_date, short_window, long_window, display_table, initial_cash):
+    # Create an empty DataFrame with defined column names
+    results_df = pd.DataFrame(columns=['Moving Average', 'Final Portfolio Value (Strategy)', 'Return % (Strategy)', 'Final Portfolio Value (Buy and Hold)', 'Return % (Buy and Hold)', 'Number of Buy Trades', 'Number of Sell Trades'])
+
     moving_avgs = ['SMA', 'EMA', 'Both']
-    results = []
     for moving_avg in moving_avgs:
-        results.append(MovingAverageCrossStrategy(stock_symbol, start_date, end_date, short_window, long_window, moving_avg, display_table, initial_cash))
-    results_df = pd.DataFrame(results, columns=['Moving Average', 'Final Portfolio Value (Strategy)', 'Return % (Strategy)', 'Final Portfolio Value (Buy and Hold)', 'Return % (Buy and Hold)', 'Number of Buy Trades', 'Number of Sell Trades'])
+        results_df.loc[moving_avg] = MovingAverageCrossStrategy(stock_symbol, start_date, end_date, short_window, long_window, moving_avg, display_table, initial_cash)
+
+    # Provide a title for the DataFrame display
+    st.write('## Simulation Results')
     st.dataframe(results_df)
 
 def MovingAverageCrossStrategy(stock_symbol, start_date, end_date, short_window, long_window, moving_avg, display_table, initial_cash):
