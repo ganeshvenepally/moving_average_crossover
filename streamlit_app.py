@@ -7,7 +7,8 @@ import time
 
 
 def run_simulations(stock_symbol, start_date, end_date, short_window, long_window, display_table, initial_cash):
-    moving_avgs = ['SMA', 'EMA', 'Both']
+    #moving_avgs = ['SMA', 'EMA', 'Both']
+    moving_avgs = ['SMA']
     results = []
     for moving_avg in moving_avgs:
         result = MovingAverageCrossStrategy(stock_symbol, start_date, end_date, short_window, long_window, moving_avg, display_table, initial_cash)
