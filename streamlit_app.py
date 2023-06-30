@@ -5,6 +5,12 @@ import yfinance as yf
 import streamlit as st
 import time
 
+def compute_drawdowns(dataframe, column):
+    """Compute drawdowns of a column in a dataframe"""
+    wealth_values = dataframe[column]
+    previous_peaks = wealth_values.cummax()
+    drawdowns = (wealth_values - previous_peaks) / previous_peaks
+    return drawdowns
 
 def run_simulations(stock_symbol, start_date, end_date, short_window, long_window, display_table, initial_cash):
     #moving_avgs = ['SMA', 'EMA', 'Both']
@@ -130,6 +136,36 @@ def MovingAverageCrossStrategy(stock_symbol, start_date, end_date, short_window,
     #print("Maximum Drawdown: %.2f%%" % max_dd)
     st.write(f"Maximum Drawdown: {max_dd:.2f}%")
 
+        # Add these lines to calculate total portfolio value
+    stock_df['Total Portfolio Value'] = stock_df['Shares'] * stock_df['Close Price'] + stock_df['Cash']
+
+    # Simulate trading and update the Total Portfolio Value
+    for i in range(1, len(stock_df)):
+        # Buy
+        if stock_df['Position'].iloc[i] == 1 and cash_balance > 0:
+            stock_qty = cash_balance // stock_df['Close Price'].iloc[i]
+            buy_price = stock_df['Close Price'].iloc[i]
+            cash_balance %= stock_df['Close Price'].iloc[i]
+        # Sell
+        elif stock_df['Position'].iloc[i] == -1 and stock_qty > 0:
+            cash_balance += stock_qty * stock_df['Close Price'].iloc[i]
+            returns = ((stock_df['Close Price'].iloc[i] - buy_price) / buy_price) * 100
+            stock_df.loc[stock_df.index[i], 'Return'] = returns
+            stock_qty = 0
+        stock_df.loc[stock_df.index[i], 'Shares'] = stock_qty
+        stock_df.loc[stock_df.index[i], 'Cash'] = cash_balance
+
+        # Update the Total Portfolio Value after each transaction
+        stock_df.loc[stock_df.index[i], 'Total Portfolio Value'] = stock_qty * stock_df['Close Price'].iloc[i] + cash_balance
+
+    # Calculate the drawdown on the total portfolio value
+    stock_df['Drawdown'] = compute_drawdowns(stock_df, 'Total Portfolio Value')
+
+    # Plot the drawdown
+    fig, ax = plt.subplots()
+    stock_df['Drawdown'].plot(ax=ax)
+    ax.set_title('Drawdowns')
+    st.pyplot(fig)
     
 
     if display_table:
