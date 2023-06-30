@@ -10,8 +10,17 @@ def run_simulations(stock_symbol, start_date, end_date, short_window, long_windo
     moving_avgs = ['SMA', 'EMA', 'Both']
     results = []
     for moving_avg in moving_avgs:
-        results.append(MovingAverageCrossStrategy(stock_symbol, start_date, end_date, short_window, long_window, moving_avg, display_table, initial_cash))
+        result = MovingAverageCrossStrategy(stock_symbol, start_date, end_date, short_window, long_window, moving_avg, display_table, initial_cash)
+        results.append(result)
+        st.subheader(f"Results for {moving_avg}")
+        st.write(f"Final Portfolio Value (Strategy): {result[1]}")
+        st.write(f"Return % (Strategy): {result[2]}%")
+        st.write(f"Final Portfolio Value (Buy and Hold): {result[3]}")
+        st.write(f"Return % (Buy and Hold): {result[4]}%")
+        st.write(f"Number of Buy Trades: {result[5]}")
+        st.write(f"Number of Sell Trades: {result[6]}")
     results_df = pd.DataFrame(results, columns=['Moving Average', 'Final Portfolio Value (Strategy)', 'Return % (Strategy)', 'Final Portfolio Value (Buy and Hold)', 'Return % (Buy and Hold)', 'Number of Buy Trades', 'Number of Sell Trades'])
+    st.subheader("Summary Table for all Moving Averages")
     st.dataframe(results_df)
 
 def MovingAverageCrossStrategy(stock_symbol, start_date, end_date, short_window, long_window, moving_avg, display_table, initial_cash):
