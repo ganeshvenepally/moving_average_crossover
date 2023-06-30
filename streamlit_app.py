@@ -20,7 +20,7 @@ def run_simulations(stock_symbol, start_date, end_date, short_window, long_windo
         st.write(f"Return % (Buy and Hold): {result[4]}%")
         st.write(f"Number of Buy Trades: {result[5]}")
         st.write(f"Number of Sell Trades: {result[6]}")
-    results_df = pd.DataFrame(results, columns=['Moving Average', 'Final Portfolio Value (Strategy)', 'Return % (Strategy)', 'Final Portfolio Value (Buy and Hold)', 'Return % (Buy and Hold)', 'Number of Buy Trades', 'Number of Sell Trades'])
+    results_df = pd.DataFrame(results, columns=['Moving Average', 'Final Portfolio Value (Strategy)', 'Return % (Strategy)', 'Final Portfolio Value (Buy and Hold)', 'Return % (Buy and Hold)', 'Number of Buy Trades', 'Number of Sell Trades', 'Maximum Drawdown'])
     st.subheader("Summary Table for all Moving Averages")
     st.dataframe(results_df)
 
