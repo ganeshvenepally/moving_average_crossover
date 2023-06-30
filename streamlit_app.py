@@ -128,14 +128,15 @@ def MovingAverageCrossStrategy(stock_symbol, start_date, end_date, short_window,
     print("Maximum Drawdown: %.2f%%" % max_dd)
     st.write(f"Maximum Drawdown: {max_dd:.2f}%")
 
-    return [moving_avg, final_value, '{:.2f}%'.format(final_return), final_value_hold, '{:.2f}%'.format(hold_return), num_trades[1], num_trades[-1], '{:.2f}%'.format(max_dd)]
+    
 
     if display_table:
         df_pos = stock_df.loc[(stock_df['Position'] == 1) | (stock_df['Position'] == -1)].copy()
         df_pos['Position'] = df_pos['Position'].apply(lambda x: 'Buy' if x == 1 else 'Sell')
         df_pos.style.format({"Return": "{:.2f}%"}).background_gradient(subset=['Return'], cmap=('Reds' if x < 0 else 'Greens' for x in df_pos['Return']))
         st.dataframe(df_pos)  
-    return [moving_avg, final_value, '{:.2f}%'.format(final_return), final_value_hold, '{:.2f}%'.format(hold_return), num_trades[1], num_trades[-1]]
+    #return [moving_avg, final_value, '{:.2f}%'.format(final_return), final_value_hold, '{:.2f}%'.format(hold_return), num_trades[1], num_trades[-1]]
+    return [moving_avg, final_value, '{:.2f}%'.format(final_return), final_value_hold, '{:.2f}%'.format(hold_return), num_trades[1], num_trades[-1], '{:.2f}%'.format(max_dd)]
 
 # Streamlit app
 st.title("Moving Average Crossover Strategy Simulator")
