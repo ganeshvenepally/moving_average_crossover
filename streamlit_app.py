@@ -93,7 +93,7 @@ def MovingAverageCrossStrategy(stock_symbol, start_date, end_date, short_window,
     # st.write(f"Number of Buy trades: {num_trades[1]}")
     # st.write(f"Number of Sell trades: {num_trades[-1]}")
 
-    fig = plt.figure(figsize=(20, 10))
+    fig = plt.figure(figsize=(40, 20))
     plt.tick_params(axis='both', labelsize=14)
     stock_df['Close Price'].plot(color='k', lw=1, label='Close Price')  
     if moving_avg == 'SMA' or moving_avg == 'Both':
