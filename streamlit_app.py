@@ -7,23 +7,12 @@ import time
 
 
 def run_simulations(stock_symbol, start_date, end_date, short_window, long_window, display_table, initial_cash):
-    # Display a message before the simulations begin
-    st.write('## Simulation Results')
-    st.write('Running simulations...')
-
     moving_avgs = ['SMA', 'EMA', 'Both']
     results = []
     for moving_avg in moving_avgs:
-        result = MovingAverageCrossStrategy(stock_symbol, start_date, end_date, short_window, long_window, moving_avg, display_table, initial_cash)
-        results.append(result)
-        # Optional: add delay for each loop to mimic ongoing processing
-        time.sleep(1)
-
-    # Create a DataFrame to display the results
+        results.append(MovingAverageCrossStrategy(stock_symbol, start_date, end_date, short_window, long_window, moving_avg, display_table, initial_cash))
     results_df = pd.DataFrame(results, columns=['Moving Average', 'Final Portfolio Value (Strategy)', 'Return % (Strategy)', 'Final Portfolio Value (Buy and Hold)', 'Return % (Buy and Hold)', 'Number of Buy Trades', 'Number of Sell Trades'])
-    
-    # Display the populated DataFrame
-    st.write(results_df)
+    st.dataframe(results_df)
 
 def MovingAverageCrossStrategy(stock_symbol, start_date, end_date, short_window, long_window, moving_avg, display_table, initial_cash):
     # Get the stock data
