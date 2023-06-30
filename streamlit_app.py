@@ -24,9 +24,7 @@ def run_simulations(stock_symbol, start_date, end_date, short_window, long_windo
     results_df = pd.DataFrame(results, columns=['Moving Average', 'Final Portfolio Value (Strategy)', 'Return % (Strategy)', 'Final Portfolio Value (Buy and Hold)', 'Return % (Buy and Hold)', 'Number of Buy Trades', 'Number of Sell Trades', 'Maximum Drawdown'])
     st.subheader("Summary Table for all Moving Averages")
     st.dataframe(results_df)
-    results_df = pd.DataFrame(results, columns=['Moving Average', 'Final Portfolio Value (Strategy)', 'Return % (Strategy)', 'Final Portfolio Value (Buy and Hold)', 'Return % (Buy and Hold)', 'Number of Buy Trades', 'Number of Sell Trades', 'Maximum Drawdown'])
-    st.subheader("Summary Table for all Moving Averages")
-    st.dataframe(results_df)
+
 
 def MovingAverageCrossStrategy(stock_symbol, start_date, end_date, short_window, long_window, moving_avg, display_table, initial_cash):
     # Get the stock data
@@ -130,7 +128,7 @@ def MovingAverageCrossStrategy(stock_symbol, start_date, end_date, short_window,
     # Print Drawdown stats
     max_dd = np.max(stock_df['Drawdown Percent'])
     #print("Maximum Drawdown: %.2f%%" % max_dd)
-    #st.write(f"Maximum Drawdown: {max_dd:.2f}%")
+    st.write(f"Maximum Drawdown: {max_dd:.2f}%")
 
     
 
