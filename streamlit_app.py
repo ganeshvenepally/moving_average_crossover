@@ -4,6 +4,15 @@ import matplotlib.pyplot as plt
 import yfinance as yf
 import streamlit as st
 
+def run_simulations(stock_symbol, start_date, end_date, short_window, long_window, display_table, initial_cash):
+    moving_avgs = ['SMA', 'EMA', 'Both']
+    results = []
+    for moving_avg in moving_avgs:
+        final_value, num_trades = MovingAverageCrossStrategy(stock_symbol, start_date, end_date, short_window, long_window, moving_avg, display_table, initial_cash)
+        results.append([moving_avg, final_value, num_trades])
+    results_df = pd.DataFrame(results, columns=['Moving Average', 'Final Portfolio Value', 'Number of Trades'])
+    st.dataframe(results_df)
+
 def MovingAverageCrossStrategy(stock_symbol, start_date, end_date, short_window, long_window, moving_avg, display_table, initial_cash):
     # Get the stock data
     stock = yf.Ticker(stock_symbol)
@@ -96,6 +105,7 @@ def MovingAverageCrossStrategy(stock_symbol, start_date, end_date, short_window,
         df_pos['Position'] = df_pos['Position'].apply(lambda x: 'Buy' if x == 1 else 'Sell')
         df_pos.style.format({"Return": "{:.2f}%"}).background_gradient(subset=['Return'], cmap=('Reds' if x < 0 else 'Greens' for x in df_pos['Return']))
         st.dataframe(df_pos)  
+    return final_value, num_trades
 
 # Streamlit app
 st.title("Moving Average Crossover Strategy Simulator")
@@ -109,4 +119,6 @@ display_table = st.checkbox("Display Table?", value=True)
 initial_cash = st.slider("Initial Cash:", min_value=10000, max_value=100000, value=50000, step=1000)
 
 if st.button('Run Simulation'):
-    MovingAverageCrossStrategy(stock_symbol, start_date, end_date, short_window, long_window, moving_avg, display_table, initial_cash)
+    #MovingAverageCrossStrategy(stock_symbol, start_date, end_date, short_window, long_window, moving_avg, display_table, initial_cash)
+    run_simulations(stock_symbol, start_date, end_date, short_window, long_window, display_table, initial_cash)
+
