@@ -8,9 +8,8 @@ def run_simulations(stock_symbol, start_date, end_date, short_window, long_windo
     moving_avgs = ['SMA', 'EMA', 'Both']
     results = []
     for moving_avg in moving_avgs:
-        final_value, num_trades = MovingAverageCrossStrategy(stock_symbol, start_date, end_date, short_window, long_window, moving_avg, display_table, initial_cash)
-        results.append([moving_avg, final_value, num_trades])
-    results_df = pd.DataFrame(results, columns=['Moving Average', 'Final Portfolio Value', 'Number of Trades'])
+        results.append(MovingAverageCrossStrategy(stock_symbol, start_date, end_date, short_window, long_window, moving_avg, display_table, initial_cash))
+    results_df = pd.DataFrame(results, columns=['Moving Average', 'Final Portfolio Value (Strategy)', 'Return % (Strategy)', 'Final Portfolio Value (Buy and Hold)', 'Return % (Buy and Hold)', 'Number of Buy Trades', 'Number of Sell Trades'])
     st.dataframe(results_df)
 
 def MovingAverageCrossStrategy(stock_symbol, start_date, end_date, short_window, long_window, moving_avg, display_table, initial_cash):
@@ -105,7 +104,7 @@ def MovingAverageCrossStrategy(stock_symbol, start_date, end_date, short_window,
         df_pos['Position'] = df_pos['Position'].apply(lambda x: 'Buy' if x == 1 else 'Sell')
         df_pos.style.format({"Return": "{:.2f}%"}).background_gradient(subset=['Return'], cmap=('Reds' if x < 0 else 'Greens' for x in df_pos['Return']))
         st.dataframe(df_pos)  
-    return final_value, num_trades
+    return [final_value, final_return, final_value_hold, hold_return, num_trades[1], num_trades[-1]]
 
 # Streamlit app
 st.title("Moving Average Crossover Strategy Simulator")
