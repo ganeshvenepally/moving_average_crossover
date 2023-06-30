@@ -3,21 +3,27 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import yfinance as yf
 import streamlit as st
+import time
+
 
 def run_simulations(stock_symbol, start_date, end_date, short_window, long_window, display_table, initial_cash):
-    # Create an empty DataFrame with defined column names
-    results_df = pd.DataFrame(columns=['Moving Average', 'Final Portfolio Value (Strategy)', 'Return % (Strategy)', 'Final Portfolio Value (Buy and Hold)', 'Return % (Buy and Hold)', 'Number of Buy Trades', 'Number of Sell Trades'])
-
-    # Display the empty DataFrame and title
+    # Display a message before the simulations begin
     st.write('## Simulation Results')
-    st.dataframe(results_df)
+    st.write('Running simulations...')
 
     moving_avgs = ['SMA', 'EMA', 'Both']
+    results = []
     for moving_avg in moving_avgs:
-        results_df.loc[moving_avg] = MovingAverageCrossStrategy(stock_symbol, start_date, end_date, short_window, long_window, moving_avg, display_table, initial_cash)
+        result = MovingAverageCrossStrategy(stock_symbol, start_date, end_date, short_window, long_window, moving_avg, display_table, initial_cash)
+        results.append(result)
+        # Optional: add delay for each loop to mimic ongoing processing
+        time.sleep(1)
 
-    # Overwrite the DataFrame with the results
-    st.dataframe(results_df)
+    # Create a DataFrame to display the results
+    results_df = pd.DataFrame(results, columns=['Moving Average', 'Final Portfolio Value (Strategy)', 'Return % (Strategy)', 'Final Portfolio Value (Buy and Hold)', 'Return % (Buy and Hold)', 'Number of Buy Trades', 'Number of Sell Trades'])
+    
+    # Display the populated DataFrame
+    st.write(results_df)
 
 def MovingAverageCrossStrategy(stock_symbol, start_date, end_date, short_window, long_window, moving_avg, display_table, initial_cash):
     # Get the stock data
