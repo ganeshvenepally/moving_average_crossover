@@ -128,7 +128,7 @@ def MovingAverageCrossStrategy(stock_symbol, start_date, end_date, short_window,
     # Print Drawdown stats
     max_dd = np.max(stock_df['Drawdown Percent'])
     #print("Maximum Drawdown: %.2f%%" % max_dd)
-    st.write(f"Maximum Drawdown: {max_dd:.2f}%")
+    #st.write(f"Maximum Drawdown: {max_dd:.2f}%")
 
     
 
