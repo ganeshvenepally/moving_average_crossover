@@ -143,7 +143,7 @@ def MovingAverageCrossStrategy(stock_symbol, start_date, end_date, short_window,
 # Streamlit app
 st.title("Moving Average Crossover Strategy Simulator")
 stock_symbol = st.text_input("Stock Symbol:", 'QQQ')
-start_date = st.date_input("Start Date:", pd.to_datetime('2023-01-01'))
+start_date = st.date_input("Start Date:", pd.to_datetime('2008-01-01'))
 end_date = st.date_input("End Date:", pd.to_datetime('2023-08-01'))
 short_window = st.slider("Short Window:", min_value=1, max_value=50, value=5, step=1)
 long_window = st.slider("Long Window:", min_value=1, max_value=200, value=20, step=1)
