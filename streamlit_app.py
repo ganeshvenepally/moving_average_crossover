@@ -1,7 +1,6 @@
 import streamlit as st
 import yfinance as yf
 import pandas as pd
-import pandas_ta as ta
 from datetime import date, datetime
 import io
 
@@ -34,9 +33,9 @@ def fetch_data(ticker, start_date, end_date):
 
 def calculate_signals(df, ma_fast, ma_slow):
     """Calculate moving averages and generate entry/exit signals"""
-    # Calculate moving averages
-    df['MA_Fast'] = ta.sma(df['Adj Close'], length=ma_fast)
-    df['MA_Slow'] = ta.sma(df['Adj Close'], length=ma_slow)
+    # Calculate moving averages using pandas rolling
+    df['MA_Fast'] = df['Adj Close'].rolling(window=ma_fast).mean()
+    df['MA_Slow'] = df['Adj Close'].rolling(window=ma_slow).mean()
     
     # Initialize signals and positions
     df['Signal'] = 0  # 0: no signal, 1: buy, -1: sell
@@ -192,19 +191,28 @@ def main():
             - Exit when {ma_fast}-day MA crosses below {ma_slow}-day MA
             """)
             
-            # Display results
+            # Display metrics using columns
             st.subheader("Strategy Performance")
-            col1, col2, col3, col4 = st.columns(4)
+            metric_cols = st.columns(4)
             
             total_return = (df['Cumulative_Return'].iloc[-1] - 1) * 100
             num_trades = len(trades_df)
             win_rate = (trades_df['Return'].astype(float) > 0).mean() * 100 if not trades_df.empty else 0
             max_drawdown = df['Drawdown'].min()
             
-            col1.metric("Total Return", f"{total_return:.2f}%")
-            col2.metric("Max Drawdown", f"{max_drawdown:.2f}%")
-            col3.metric("Win Rate", f"{win_rate:.2f}%")
-            col4.metric("Number of Trades", num_trades)
+            metric_cols[0].metric("Total Return", f"{total_return:.2f}%")
+            metric_cols[1].metric("Max Drawdown", f"{max_drawdown:.2f}%")
+            metric_cols[2].metric("Win Rate", f"{win_rate:.2f}%")
+            metric_cols[3].metric("Number of Trades", num_trades)
+            
+            # Plot price and moving averages
+            st.subheader("Price and Moving Averages")
+            chart_data = pd.DataFrame({
+                'Price': df['Adj Close'],
+                f'{ma_fast}d MA': df['MA_Fast'],
+                f'{ma_slow}d MA': df['MA_Slow']
+            })
+            st.line_chart(chart_data)
             
             # Display trades
             if not trades_df.empty:
