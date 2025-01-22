@@ -1,240 +1,156 @@
-import streamlit as st
-import yfinance as yf
+import numpy as np 
 import pandas as pd
-import numpy as np
-from datetime import date, datetime
-import io
+import matplotlib.pyplot as plt
+import yfinance as yf
+import streamlit as st
+import time
 
-def convert_df_to_csv(df):
-    csv_buffer = io.StringIO()
-    df.to_csv(csv_buffer, index=True)
-    csv_buffer.seek(0)
-    return csv_buffer.getvalue()
 
-# Define assets
-US_ASSETS = [
-    "SPY", "QQQ", "AAPL", "MSFT", "GOOGL", "AMZN", "META",
-    "NFLX", "NVDA", "TSLA", "COST", "JPM", "V", "JNJ"
-]
+def run_simulations(stock_symbol, start_date, end_date, short_window, long_window, display_table, initial_cash):
+    #moving_avgs = ['SMA', 'EMA', 'Both']
+    moving_avgs = ['SMA']
+    results = []
+    for moving_avg in moving_avgs:
+        result = MovingAverageCrossStrategy(stock_symbol, start_date, end_date, short_window, long_window, moving_avg, display_table, initial_cash)
+        results.append(result)
+        st.subheader(f"Results for {moving_avg}")
+        st.write(f"Final Portfolio Value (Strategy): {result[1]}")
+        st.write(f"Final Portfolio Value (Buy and Hold): {result[3]}")
+        st.write(f"Return % (Strategy): {result[2]}%")
+        st.write(f"Return % (Buy and Hold): {result[4]}%")
+        st.write(f"Number of Buy Trades: {result[5]}")
+        st.write(f"Number of Sell Trades: {result[6]}")
+        st.write(f"Maximum Drawdown: {result[7]}")  # Displaying Maximum Drawdown
+    results_df = pd.DataFrame(results, columns=['Moving Average', 'Final Portfolio Value (Strategy)', 'Return % (Strategy)', 'Final Portfolio Value (Buy and Hold)', 'Return % (Buy and Hold)', 'Number of Buy Trades', 'Number of Sell Trades', 'Maximum Drawdown'])
+    st.subheader("Summary Table for all Moving Averages")
+    st.dataframe(results_df)
 
-INDIAN_ASSETS = [
-    "RELIANCE.NS", "TCS.NS", "HDFCBANK.NS", "INFY.NS", "ICICIBANK.NS",
-    "HINDUNILVR.NS", "ITC.NS", "SBIN.NS", "BHARTIARTL.NS"
-]
 
-def fetch_data(ticker, start_date, end_date):
-    """Fetch data for a single ticker"""
-    try:
-        data = yf.download(ticker, start=start_date, end=end_date, progress=False)
-        if data.empty:
-            return None
-        return data
-    except Exception as e:
-        st.error(f"Error fetching data for {ticker}: {str(e)}")
-        return None
+def MovingAverageCrossStrategy(stock_symbol, start_date, end_date, short_window, long_window, moving_avg, display_table, initial_cash):
+    # Get the stock data
+    stock = yf.Ticker(stock_symbol)
+    stock_df = stock.history(start=start_date, end=end_date)['Close']
+    stock_df = pd.DataFrame(stock_df)
+    stock_df.columns = {'Close Price'}
 
-def analyze_ma_strategy(data, ma_fast, ma_slow):
-    """Analyze moving average strategy for a given dataset"""
-    if data is None or len(data) < ma_slow:
-        return None
-    
-    df = data.copy()
-    
-    # Calculate moving averages
-    df['MA_Fast'] = df['Close'].rolling(window=ma_fast).mean()
-    df['MA_Slow'] = df['Close'].rolling(window=ma_slow).mean()
-    
-    # Calculate signals and positions
-    df['Signal'] = 0
-    df.loc[df['MA_Fast'] > df['MA_Slow'], 'Signal'] = 1
-    df.loc[df['MA_Fast'] < df['MA_Slow'], 'Signal'] = -1
-    df['Position'] = df['Signal'].shift(1)
-    df['Position'] = df['Position'].fillna(0)
-    
-    # Calculate returns
-    df['Returns'] = df['Close'].pct_change()
-    df['Strategy_Returns'] = df['Position'] * df['Returns']
-    
-    # Calculate cumulative returns
-    df['Cumulative_Returns'] = (1 + df['Strategy_Returns']).cumprod()
-    
-    # Calculate drawdown
-    df['Peak'] = df['Cumulative_Returns'].expanding().max()
-    df['Drawdown'] = (df['Cumulative_Returns'] - df['Peak']) / df['Peak'] * 100
-    
-    # Identify trade entry and exit points
-    df['Position_Change'] = df['Position'].diff()
-    df['Trade_Entry'] = df['Position_Change'] == 1
-    df['Trade_Exit'] = df['Position_Change'] == -1
-    
-    return df
+    short_window_col_sma = str(short_window) + '_SMA'
+    long_window_col_sma = str(long_window) + '_SMA'
+    short_window_col_ema = str(short_window) + '_EMA'
+    long_window_col_ema = str(long_window) + '_EMA'
 
-def get_performance_metrics(df):
-    """Calculate performance metrics"""
-    if df is None:
-        return None
-        
-    total_return = (df['Cumulative_Returns'].iloc[-1] - 1) * 100
-    max_drawdown = df['Drawdown'].min()
-    
-    # Calculate trade statistics
-    trades = len(df[df['Position_Change'] != 0])
-    winning_trades = len(df[(df['Position_Change'] != 0) & (df['Strategy_Returns'] > 0)])
-    win_rate = (winning_trades / trades * 100) if trades > 0 else 0
-    
-    return {
-        'Total Return': f"{total_return:.2f}%",
-        'Max Drawdown': f"{max_drawdown:.2f}%",
-        'Number of Trades': trades,
-        'Win Rate': f"{win_rate:.2f}%"
-    }
+    stock_df[short_window_col_sma] = stock_df['Close Price'].rolling(window = short_window, min_periods = 1).mean()
+    stock_df[long_window_col_sma] = stock_df['Close Price'].rolling(window = long_window, min_periods = 1).mean()
+    stock_df[short_window_col_ema] = stock_df['Close Price'].ewm(span = short_window, adjust = False).mean()
+    stock_df[long_window_col_ema] = stock_df['Close Price'].ewm(span = long_window, adjust = False).mean()
 
-def create_trade_summary(df):
-    """Create trade summary DataFrame"""
-    trades = []
-    entry_price = None
-    entry_date = None
+    if moving_avg == 'SMA':
+        stock_df['Signal'] = np.where(stock_df[short_window_col_sma] > stock_df[long_window_col_sma], 1.0, 0.0)
+    elif moving_avg == 'EMA':
+        stock_df['Signal'] = np.where(stock_df[short_window_col_ema] > stock_df[long_window_col_ema], 1.0, 0.0)
+    elif moving_avg == 'Both':
+        stock_df['Signal'] = np.where(((stock_df[short_window_col_sma] > stock_df[long_window_col_sma]) & 
+                                        (stock_df[short_window_col_ema] > stock_df[long_window_col_ema])), 1.0, 0.0)
+    
+    stock_df['Position'] = stock_df['Signal'].diff()
 
-    for idx, row in df.iterrows():
-        # Debugging
-        st.write(f"Row causing issue: {row}")
-        st.write(f"Trade Entry value type: {type(row['Trade_Entry'])}")
+    # Simulate the trading
+    cash_balance = initial_cash
+    stock_qty = 0
+    buy_price = 0
+    stock_df['Shares'] = 0
+    stock_df['Cash'] = initial_cash
+    stock_df['Return'] = 0
+    for i in range(1, len(stock_df)):
+        # Buy
+        if stock_df['Position'].iloc[i] == 1 and cash_balance > 0:
+            stock_qty = cash_balance // stock_df['Close Price'].iloc[i]
+            buy_price = stock_df['Close Price'].iloc[i]
+            cash_balance %= stock_df['Close Price'].iloc[i]
+        # Sell
+        elif stock_df['Position'].iloc[i] == -1 and stock_qty > 0:
+            cash_balance += stock_qty * stock_df['Close Price'].iloc[i]
+            returns = ((stock_df['Close Price'].iloc[i] - buy_price) / buy_price) * 100
+            stock_df.loc[stock_df.index[i], 'Return'] = returns
+            stock_qty = 0
+        stock_df.loc[stock_df.index[i], 'Shares'] = stock_qty
+        stock_df.loc[stock_df.index[i], 'Cash'] = cash_balance
+    final_value = cash_balance + stock_qty * stock_df['Close Price'].iloc[-1]
 
-        # Access the scalar value explicitly
-        trade_entry = row.at['Trade_Entry']
-        trade_exit = row.at['Trade_Exit']
+    # Calculate Buy and Hold Strategy
+    initial_qty = initial_cash // stock_df['Close Price'].iloc[0]
+    final_value_hold = initial_qty * stock_df['Close Price'].iloc[-1]
+    hold_return = ((final_value_hold - initial_cash) / initial_cash) * 100
+    final_return = ((final_value - initial_cash) / initial_cash) * 100
 
-        # Entry signal
-        if trade_entry:
-            entry_date = idx
-            entry_price = row['Close']
-        # Exit signal
-        elif trade_exit and entry_price is not None:
-            exit_price = row['Close']
-            trade_return = ((exit_price - entry_price) / entry_price) * 100
-            trades.append({
-                'Entry Date': entry_date.strftime('%Y-%m-%d'),
-                'Exit Date': idx.strftime('%Y-%m-%d'),
-                'Entry Price': f"${entry_price:.2f}",
-                'Exit Price': f"${exit_price:.2f}",
-                'Return (%)': f"{trade_return:.2f}%",
-                'Fast MA': f"${row['MA_Fast']:.2f}",
-                'Slow MA': f"${row['MA_Slow']:.2f}"
-            })
-            entry_price = None
+    # Counting the number of trades
+    df_pos = stock_df.loc[(stock_df['Position'] == 1) | (stock_df['Position'] == -1)].copy()
+    num_trades = df_pos['Position'].value_counts()
 
-    # Handle open position
-    if entry_price is not None:
-        last_row = df.iloc[-1]
-        exit_price = last_row['Close']
-        trade_return = ((exit_price - entry_price) / entry_price) * 100
-        trades.append({
-            'Entry Date': entry_date.strftime('%Y-%m-%d'),
-            'Exit Date': 'Open',
-            'Entry Price': f"${entry_price:.2f}",
-            'Exit Price': f"${exit_price:.2f}",
-            'Return (%)': f"{trade_return:.2f}%",
-            'Fast MA': f"${last_row['MA_Fast']:.2f}",
-            'Slow MA': f"${last_row['MA_Slow']:.2f}"
-        })
+    # st.write(f'Final portfolio value using strategy: final_value:  {final_value} ')
+    # st.write(f'Final portfolio value using strategy: Return Percent: {final_return:.2f}%')
 
-    return pd.DataFrame(trades) if trades else pd.DataFrame()
+    # st.write(f'Final portfolio value using Buy and Hold: final_value: {final_value_hold}')
+    # st.write(f'Final portfolio value using Buy and Hold: Return Percent: {hold_return:.2f}%')  
 
-def main():
-    st.set_page_config(layout="wide")
-    st.title("Moving Average Crossover Strategy Backtester")
-    
-    col1, col2, col3, col4 = st.columns(4)
-    
-    with col1:
-        market = st.selectbox("Select Market", ["US", "India"])
-        assets = US_ASSETS if market == "US" else INDIAN_ASSETS
-    
-    with col2:
-        ticker = st.selectbox("Select Asset", assets)
-    
-    with col3:
-        end_date = st.date_input("End Date", date.today())
-    
-    with col4:
-        lookback_months = st.slider("Lookback Period (Months)", 1, 60, 12)
-    
-    # Moving average parameters
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        ma_fast = st.slider("Fast Moving Average (Days)", 5, 200, 50)
-    
-    with col2:
-        ma_slow = st.slider("Slow Moving Average (Days)", 5, 200, 200)
-    
-    if st.button("Run Analysis"):
-        st.subheader(f"Analysis Results for {ticker}")
-        
-        start_date = pd.to_datetime(end_date) - pd.DateOffset(months=lookback_months)
-        
-        with st.spinner('Analyzing data...'):
-            # Fetch and analyze data
-            data = fetch_data(ticker, start_date, end_date)
-            
-            if data is not None:
-                results = analyze_ma_strategy(data, ma_fast, ma_slow)
-                
-                if results is not None:
-                    # Display strategy rules
-                    st.info(f"""
-                    Strategy Rules:
-                    - Enter when {ma_fast}-day MA crosses above {ma_slow}-day MA
-                    - Exit when {ma_fast}-day MA crosses below {ma_slow}-day MA
-                    """)
-                    
-                    # Display performance metrics
-                    metrics = get_performance_metrics(results)
-                    if metrics:
-                        cols = st.columns(4)
-                        for i, (metric, value) in enumerate(metrics.items()):
-                            cols[i].metric(metric, value)
-                    
-                    # Plot price and moving averages
-                    st.subheader("Price and Moving Averages")
-                    plot_df = pd.DataFrame(index=results.index)
-                    plot_df['Price'] = results['Close']
-                    plot_df[f'{ma_fast}d MA'] = results['MA_Fast']
-                    plot_df[f'{ma_slow}d MA'] = results['MA_Slow']
-                    st.line_chart(plot_df)
-                    
-                    # Create and display trade summary
-                    st.subheader("Trade Summary")
-                    trade_summary = create_trade_summary(results)
-                    
-                    if not trade_summary.empty:
-                        st.dataframe(trade_summary)
-                        
-                        # Add download buttons
-                        col1, col2 = st.columns(2)
-                        with col1:
-                            trades_csv = convert_df_to_csv(trade_summary)
-                            st.download_button(
-                                label="Download Trades Data",
-                                data=trades_csv,
-                                file_name=f'{ticker}_trades.csv',
-                                mime='text/csv'
-                            )
-                        
-                        with col2:
-                            full_data_csv = convert_df_to_csv(results)
-                            st.download_button(
-                                label="Download Full Analysis Data",
-                                data=full_data_csv,
-                                file_name=f'{ticker}_full_analysis.csv',
-                                mime='text/csv'
-                            )
-                    else:
-                        st.info("No trades were generated during the selected period.")
-                else:
-                    st.error("Not enough data for the selected moving average periods.")
-            else:
-                st.error(f"No data available for {ticker}")
+    # st.write(f"Number of Buy trades: {num_trades[1]}")
+    # st.write(f"Number of Sell trades: {num_trades[-1]}")
 
-if __name__ == "__main__":
-    main()
+    fig = plt.figure(figsize=(20, 10))
+    plt.tick_params(axis='both', labelsize=14)
+    stock_df['Close Price'].plot(color='k', lw=1, label='Close Price')  
+    if moving_avg == 'SMA' or moving_avg == 'Both':
+        stock_df[short_window_col_sma].plot(color='b', lw=1, label=short_window_col_sma)
+        stock_df[long_window_col_sma].plot(color='g', lw=1, label=long_window_col_sma)
+    if moving_avg == 'EMA' or moving_avg == 'Both':
+        stock_df[short_window_col_ema].plot(color='r', lw=1, label=short_window_col_ema)
+        stock_df[long_window_col_ema].plot(color='y', lw=1, label=long_window_col_ema)
+    plt.plot(stock_df[stock_df['Position'] == 1].index, stock_df['Close Price'][stock_df['Position'] == 1], '^', markersize=15, color='g', alpha=0.7, label='buy')
+    plt.plot(stock_df[stock_df['Position'] == -1].index, stock_df['Close Price'][stock_df['Position'] == -1], 'v', markersize=15, color='r', alpha=0.7, label='sell')
+    plt.ylabel('Price in ₹', fontsize=16)
+    plt.xlabel('Date', fontsize=16)
+    plt.title(str(stock_symbol) + ' - ' + str(moving_avg) + ' Crossover', fontsize=20)
+    plt.legend()
+    plt.grid()
+    st.pyplot(fig)
+
+    # Calculate Drawdown
+    stock_df['Portfolio Value'] = stock_df['Cash'] + (stock_df['Shares'] * stock_df['Close Price'])
+    stock_df['Running Max'] = np.maximum.accumulate(stock_df['Portfolio Value'])
+    stock_df['Drawdown'] = stock_df['Running Max'] - stock_df['Portfolio Value']
+    stock_df['Drawdown Percent'] = stock_df['Drawdown'] / stock_df['Running Max'] * 100
+
+    # Plotting Drawdown
+    fig, ax = plt.subplots(figsize=(15, 7))
+    plt.fill_between(stock_df.index, stock_df['Drawdown Percent'], color='red', alpha=0.3)
+    plt.title('Portfolio Drawdown')
+    plt.show()
+
+    # Print Drawdown stats
+    max_dd = np.max(stock_df['Drawdown Percent'])
+    #print("Maximum Drawdown: %.2f%%" % max_dd)
+    #st.write(f"Maximum Drawdown: {max_dd:.2f}%")
+
+    
+
+    if display_table:
+        df_pos = stock_df.loc[(stock_df['Position'] == 1) | (stock_df['Position'] == -1)].copy()
+        df_pos['Position'] = df_pos['Position'].apply(lambda x: 'Buy' if x == 1 else 'Sell')
+        df_pos.style.format({"Return": "{:.2f}%"}).background_gradient(subset=['Return'], cmap=('Reds' if x < 0 else 'Greens' for x in df_pos['Return']))
+        st.dataframe(df_pos)  
+    #return [moving_avg, final_value, '{:.2f}%'.format(final_return), final_value_hold, '{:.2f}%'.format(hold_return), num_trades[1], num_trades[-1]]
+    return [moving_avg, final_value, '{:.2f}%'.format(final_return), final_value_hold, '{:.2f}%'.format(hold_return), num_trades[1], num_trades[-1], '{:.2f}%'.format(max_dd)]
+
+# Streamlit app
+st.title("Moving Average Crossover Strategy Simulator")
+stock_symbol = st.text_input("Stock Symbol:", 'QQQ')
+start_date = st.date_input("Start Date:", pd.to_datetime('2003-01-01'))
+end_date = st.date_input("End Date:", pd.to_datetime('2023-08-01'))
+short_window = st.slider("Short Window:", min_value=1, max_value=50, value=5, step=1)
+long_window = st.slider("Long Window:", min_value=1, max_value=200, value=20, step=1)
+#moving_avg = st.selectbox("Moving Average Type:", ('SMA', 'EMA', 'Both'), index=0)
+display_table = st.checkbox("Display Table?", value=True)
+initial_cash = st.slider("Initial Cash:", min_value=10000, max_value=100000, value=50000, step=1000)
+
+if st.button('Run Simulation'):
+    #MovingAverageCrossStrategy(stock_symbol, start_date, end_date, short_window, long_window, moving_avg, display_table, initial_cash)
+    run_simulations(stock_symbol, start_date, end_date, short_window, long_window, display_table, initial_cash)
