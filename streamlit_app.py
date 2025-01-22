@@ -103,13 +103,16 @@ def analyze_trades(df, market):
     
     # Process each trade
     for entry_date, exit_date in zip(entry_points, exit_points):
-        entry_price = df.loc[entry_date, 'Close']
-        exit_price = df.loc[exit_date, 'Close']
+        # Get price values
+        entry_price = float(df.loc[entry_date, 'Close'])
+        exit_price = float(df.loc[exit_date, 'Close'])
         
         # Get trade period data
         trade_period = df.loc[entry_date:exit_date]
-        high_price = trade_period['Close'].max()
-        low_price = trade_period['Close'].min()
+        high_price = float(trade_period['Close'].max())
+        low_price = float(trade_period['Close'].min())
+        ma_fast_entry = float(df.loc[entry_date, 'MA_Fast'])
+        ma_slow_entry = float(df.loc[entry_date, 'MA_Slow'])
         
         # Calculate trade metrics
         trade_return = (exit_price - entry_price) / entry_price * 100
@@ -124,8 +127,8 @@ def analyze_trades(df, market):
             'Low_Price': f"{currency_symbol}{low_price:.2f}",
             'Return': trade_return,
             'Holding_Period': holding_period,
-            'MA_Fast_Entry': df.loc[entry_date, 'MA_Fast'],
-            'MA_Slow_Entry': df.loc[entry_date, 'MA_Slow']
+            'MA_Fast_Entry': ma_fast_entry,
+            'MA_Slow_Entry': ma_slow_entry
         }
         trades.append(trade_data)
     
@@ -241,7 +244,9 @@ def main():
                 st.subheader("Individual Trades")
                 st.dataframe(trades_df.style.format({
                     'Return': '{:.2f}%',
-                    'Holding_Period': '{:.1f}'
+                    'Holding_Period': '{:.1f}',
+                    'MA_Fast_Entry': '{:.2f}',
+                    'MA_Slow_Entry': '{:.2f}'
                 }))
                 
                 # Download buttons
