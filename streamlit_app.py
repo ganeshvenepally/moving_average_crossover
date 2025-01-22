@@ -41,38 +41,30 @@ def calculate_signals(df, ma_fast, ma_slow):
     df['MA_Fast'] = df['Close'].rolling(window=ma_fast).mean()
     df['MA_Slow'] = df['Close'].rolling(window=ma_slow).mean()
     
-    # Initialize signals and positions
-    df['Signal'] = 0  # 0: no signal, 1: buy, -1: sell
-    df['Position'] = 0  # 0: no position, 1: in position
+    # Generate crossover signals using numpy for better performance
+    df['Signal'] = 0  # Initialize signal column
+    df['Position'] = 0  # Initialize position column
     
-    # Generate positions
+    # Create arrays for calculation
+    fast_ma = df['MA_Fast'].values
+    slow_ma = df['MA_Slow'].values
     position = 0
     positions = []
-    signals = []
     
+    # Calculate positions
     for i in range(len(df)):
-        if pd.notna(df['MA_Fast'].iloc[i]) and pd.notna(df['MA_Slow'].iloc[i]):
-            # Entry condition
-            if df['MA_Fast'].iloc[i] > df['MA_Slow'].iloc[i] and position == 0:
-                signals.append(1)
-                position = 1
-            # Exit condition
-            elif df['MA_Fast'].iloc[i] < df['MA_Slow'].iloc[i] and position == 1:
-                signals.append(-1)
-                position = 0
-            else:
-                signals.append(0)
-        else:
-            signals.append(0)
-        
+        if not (np.isnan(fast_ma[i]) or np.isnan(slow_ma[i])):
+            if fast_ma[i] > slow_ma[i] and position == 0:
+                position = 1  # Enter position
+            elif fast_ma[i] < slow_ma[i] and position == 1:
+                position = 0  # Exit position
         positions.append(position)
     
-    df['Signal'] = signals
     df['Position'] = positions
     
-    # Mark trade entries and exits
-    df['Trade_Entry'] = (df['Position'].diff() == 1)
-    df['Trade_Exit'] = (df['Position'].diff() == -1)
+    # Calculate trade entries and exits
+    df['Trade_Entry'] = (df['Position'] - df['Position'].shift(1) == 1).astype(int)
+    df['Trade_Exit'] = (df['Position'] - df['Position'].shift(1) == -1).astype(int)
     
     return df
 
@@ -87,7 +79,7 @@ def calculate_returns(df):
     df['Strategy_Return'] = df['Daily_Return'] * df['Position'].shift(1)
     
     # Calculate cumulative returns
-    df['Cumulative_Return'] = (1 + df['Strategy_Return']).cumprod()
+    df['Cumulative_Return'] = (1 + df['Strategy_Return']).fillna(1).cumprod()
     
     # Calculate drawdown
     df['Peak'] = df['Cumulative_Return'].expanding().max()
@@ -98,57 +90,44 @@ def calculate_returns(df):
 def analyze_trades(df, market):
     """Analyze individual trades and calculate statistics"""
     trades = []
-    entry_price = None
-    entry_date = None
-    
+    df = df.copy()
     currency_symbol = "₹" if market == "India" else "$"
     
-    for date, row in df.iterrows():
-        if row['Trade_Entry'] == True:  # Explicit boolean comparison
-            entry_price = row['Close']
-            entry_date = date
-        elif row['Trade_Exit'] == True and entry_price is not None:  # Explicit boolean comparison
-            exit_price = row['Close']
-            
-            # Calculate trade metrics
-            trade_return = (exit_price - entry_price) / entry_price * 100
-            holding_period = (date - entry_date).days / 30.44  # Convert days to months
-            
-            # Get trade period data for additional metrics
-            trade_period = df.loc[entry_date:date]
-            high_price = trade_period['Close'].max()
-            low_price = trade_period['Close'].min()
-            
-            trades.append({
-                'Entry_Date': entry_date,
-                'Exit_Date': date,
-                'Entry_Price': f"{currency_symbol}{entry_price:.2f}",
-                'Exit_Price': f"{currency_symbol}{exit_price:.2f}",
-                'High_Price': f"{currency_symbol}{high_price:.2f}",
-                'Low_Price': f"{currency_symbol}{low_price:.2f}",
-                'Return': trade_return,
-                'Holding_Period': holding_period,
-                'MA_Fast_Entry': row['MA_Fast'],
-                'MA_Slow_Entry': row['MA_Slow']
-            })
-            entry_price = None
+    # Get entry and exit points
+    entry_points = df.index[df['Trade_Entry'] == 1].tolist()
+    exit_points = df.index[df['Trade_Exit'] == 1].tolist()
     
-    # Add last open position if exists
-    if entry_price is not None:
-        last_date = df.index[-1]
-        last_price = df['Close'].iloc[-1]
-        trades.append({
+    # Add last date if we're still in a position
+    if len(entry_points) > len(exit_points):
+        exit_points.append(df.index[-1])
+    
+    # Process each trade
+    for entry_date, exit_date in zip(entry_points, exit_points):
+        entry_price = df.loc[entry_date, 'Close']
+        exit_price = df.loc[exit_date, 'Close']
+        
+        # Get trade period data
+        trade_period = df.loc[entry_date:exit_date]
+        high_price = trade_period['Close'].max()
+        low_price = trade_period['Close'].min()
+        
+        # Calculate trade metrics
+        trade_return = (exit_price - entry_price) / entry_price * 100
+        holding_period = (exit_date - entry_date).days / 30.44  # Convert to months
+        
+        trade_data = {
             'Entry_Date': entry_date,
-            'Exit_Date': "Open",
+            'Exit_Date': exit_date if exit_date != df.index[-1] else "Open",
             'Entry_Price': f"{currency_symbol}{entry_price:.2f}",
-            'Exit_Price': f"{currency_symbol}{last_price:.2f}",
-            'High_Price': f"{currency_symbol}{df['Close'][entry_date:].max():.2f}",
-            'Low_Price': f"{currency_symbol}{df['Close'][entry_date:].min():.2f}",
-            'Return': (last_price - entry_price) / entry_price * 100,
-            'Holding_Period': (last_date - entry_date).days / 30.44,
+            'Exit_Price': f"{currency_symbol}{exit_price:.2f}",
+            'High_Price': f"{currency_symbol}{high_price:.2f}",
+            'Low_Price': f"{currency_symbol}{low_price:.2f}",
+            'Return': trade_return,
+            'Holding_Period': holding_period,
             'MA_Fast_Entry': df.loc[entry_date, 'MA_Fast'],
             'MA_Slow_Entry': df.loc[entry_date, 'MA_Slow']
-        })
+        }
+        trades.append(trade_data)
     
     return pd.DataFrame(trades)
 
@@ -212,7 +191,7 @@ def main():
             
             total_return = (df['Cumulative_Return'].iloc[-1] - 1) * 100
             num_trades = len(trades_df)
-            win_rate = (trades_df['Return'].astype(float) > 0).mean() * 100 if not trades_df.empty else 0
+            win_rate = len(trades_df[trades_df['Return'] > 0]) / len(trades_df) * 100 if len(trades_df) > 0 else 0
             max_drawdown = df['Drawdown'].min()
             
             metric_cols[0].metric("Total Return", f"{total_return:.2f}%")
@@ -231,8 +210,59 @@ def main():
             
             # Display trade statistics and tables
             if not trades_df.empty:
-                # [Rest of the display code remains the same]
-                pass
+                st.subheader("Trade Statistics")
+                stat_col1, stat_col2 = st.columns(2)
+                
+                with stat_col1:
+                    st.markdown("**Return Metrics**")
+                    stats_df1 = pd.DataFrame({
+                        'Metric': ['Average Return', 'Best Trade Return', 'Worst Trade Return'],
+                        'Value': [
+                            f"{trades_df['Return'].mean():.2f}%",
+                            f"{trades_df['Return'].max():.2f}%",
+                            f"{trades_df['Return'].min():.2f}%"
+                        ]
+                    })
+                    st.dataframe(stats_df1, hide_index=True)
+                
+                with stat_col2:
+                    st.markdown("**Time Metrics**")
+                    stats_df2 = pd.DataFrame({
+                        'Metric': ['Average Holding Period', 'Longest Trade', 'Shortest Trade'],
+                        'Value': [
+                            f"{trades_df['Holding_Period'].mean():.1f} months",
+                            f"{trades_df['Holding_Period'].max():.1f} months",
+                            f"{trades_df['Holding_Period'].min():.1f} months"
+                        ]
+                    })
+                    st.dataframe(stats_df2, hide_index=True)
+                
+                # Display trades table
+                st.subheader("Individual Trades")
+                st.dataframe(trades_df.style.format({
+                    'Return': '{:.2f}%',
+                    'Holding_Period': '{:.1f}'
+                }))
+                
+                # Download buttons
+                col1, col2 = st.columns(2)
+                with col1:
+                    trades_csv = convert_df_to_csv(trades_df)
+                    st.download_button(
+                        label="Download Trades Data",
+                        data=trades_csv,
+                        file_name=f'{ticker}_trades.csv',
+                        mime='text/csv'
+                    )
+                
+                with col2:
+                    full_data_csv = convert_df_to_csv(df)
+                    st.download_button(
+                        label="Download Full Analysis Data",
+                        data=full_data_csv,
+                        file_name=f'{ticker}_full_analysis.csv',
+                        mime='text/csv'
+                    )
             else:
                 st.info("No trades were generated during the selected period.")
 
