@@ -96,6 +96,9 @@ def create_trade_summary(df):
     entry_date = None
 
     for idx, row in df.iterrows():
+        # Debugging: Print the row and the type of 'Trade_Entry'
+        st.write(f"Row causing issue: {row}")
+        st.write(f"Trade Entry value type: {type(row['Trade_Entry'])}")        
         # Entry signal
         if row['Trade_Entry']:  # Explicitly checking if it's True
             entry_date = idx
