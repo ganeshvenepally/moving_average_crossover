@@ -97,11 +97,11 @@ def create_trade_summary(df):
 
     for idx, row in df.iterrows():
         # Entry signal
-        if row['Trade_Entry'] == True:  # Explicitly check for True
+        if row['Trade_Entry']:  # Explicitly checking if it's True
             entry_date = idx
             entry_price = row['Close']
         # Exit signal
-        elif row['Trade_Exit'] == True and entry_price is not None:  # Explicitly check for True
+        elif row['Trade_Exit'] and entry_price is not None:
             exit_price = row['Close']
             trade_return = ((exit_price - entry_price) / entry_price) * 100
             trades.append({
