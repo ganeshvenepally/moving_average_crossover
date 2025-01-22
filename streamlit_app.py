@@ -76,6 +76,25 @@ def calculate_signals(df, ma_fast, ma_slow):
     
     return df
 
+def calculate_returns(df):
+    """Calculate returns and statistics for the strategy"""
+    df = df.copy()
+    
+    # Calculate daily returns
+    df['Daily_Return'] = df['Close'].pct_change()
+    
+    # Calculate strategy returns
+    df['Strategy_Return'] = df['Daily_Return'] * df['Position'].shift(1)
+    
+    # Calculate cumulative returns
+    df['Cumulative_Return'] = (1 + df['Strategy_Return']).cumprod()
+    
+    # Calculate drawdown
+    df['Peak'] = df['Cumulative_Return'].expanding().max()
+    df['Drawdown'] = (df['Cumulative_Return'] - df['Peak']) / df['Peak'] * 100
+    
+    return df
+
 def analyze_trades(df, market):
     """Analyze individual trades and calculate statistics"""
     trades = []
