@@ -96,15 +96,20 @@ def create_trade_summary(df):
     entry_date = None
 
     for idx, row in df.iterrows():
-        # Debugging: Print the row and the type of 'Trade_Entry'
+        # Debugging
         st.write(f"Row causing issue: {row}")
-        st.write(f"Trade Entry value type: {type(row['Trade_Entry'])}")        
+        st.write(f"Trade Entry value type: {type(row['Trade_Entry'])}")
+
+        # Access the scalar value explicitly
+        trade_entry = row.at['Trade_Entry']
+        trade_exit = row.at['Trade_Exit']
+
         # Entry signal
-        if row['Trade_Entry']:  # Explicitly checking if it's True
+        if trade_entry:
             entry_date = idx
             entry_price = row['Close']
         # Exit signal
-        elif row['Trade_Exit'] and entry_price is not None:
+        elif trade_exit and entry_price is not None:
             exit_price = row['Close']
             trade_return = ((exit_price - entry_price) / entry_price) * 100
             trades.append({
