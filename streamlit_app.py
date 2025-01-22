@@ -3,6 +3,7 @@ import yfinance as yf
 import pandas as pd
 from datetime import date, datetime
 import io
+import numpy as np
 
 def convert_df_to_csv(df):
     """Convert dataframe to CSV format for download"""
