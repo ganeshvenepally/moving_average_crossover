@@ -94,14 +94,14 @@ def create_trade_summary(df):
     trades = []
     entry_price = None
     entry_date = None
-    
+
     for idx, row in df.iterrows():
         # Entry signal
-        if row['Trade_Entry']:
+        if row['Trade_Entry'] == True:  # Explicitly check for True
             entry_date = idx
             entry_price = row['Close']
         # Exit signal
-        elif row['Trade_Exit'] and entry_price is not None:
+        elif row['Trade_Exit'] == True and entry_price is not None:  # Explicitly check for True
             exit_price = row['Close']
             trade_return = ((exit_price - entry_price) / entry_price) * 100
             trades.append({
@@ -114,7 +114,7 @@ def create_trade_summary(df):
                 'Slow MA': f"${row['MA_Slow']:.2f}"
             })
             entry_price = None
-    
+
     # Handle open position
     if entry_price is not None:
         last_row = df.iloc[-1]
@@ -129,7 +129,7 @@ def create_trade_summary(df):
             'Fast MA': f"${last_row['MA_Fast']:.2f}",
             'Slow MA': f"${last_row['MA_Slow']:.2f}"
         })
-    
+
     return pd.DataFrame(trades) if trades else pd.DataFrame()
 
 def main():
