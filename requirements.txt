@@ -4,4 +4,3 @@ matplotlib
 tabulate
 yfinance
 streamlit
-pandas_ta
