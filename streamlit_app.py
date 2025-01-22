@@ -82,14 +82,6 @@ def get_performance_metrics(df):
         'Win Rate': f"{win_rate:.2f}%"
     }
 
-def create_chart_data(df, ma_fast, ma_slow):
-    """Create chart data ensuring 1D arrays"""
-    return pd.DataFrame({
-        'Price': df['Close'].values,  # Convert to 1D array
-        f'{ma_fast}d MA': df['MA_Fast'].values,  # Convert to 1D array
-        f'{ma_slow}d MA': df['MA_Slow'].values   # Convert to 1D array
-    }, index=df.index)
-
 def main():
     st.set_page_config(layout="wide")
     st.title("Moving Average Crossover Strategy Backtester")
@@ -145,10 +137,17 @@ def main():
                         for i, (metric, value) in enumerate(metrics.items()):
                             cols[i].metric(metric, value)
                     
-                    # Plot price and moving averages
+                    # Plot price and moving averages using native pandas plotting
                     st.subheader("Price and Moving Averages")
-                    chart_df = create_chart_data(results, ma_fast, ma_slow)
-                    st.line_chart(chart_df)
+                    
+                    # Create a new DataFrame with the required columns
+                    plot_df = pd.DataFrame(index=results.index)
+                    plot_df['Price'] = results['Close']
+                    plot_df[f'{ma_fast}d MA'] = results['MA_Fast']
+                    plot_df[f'{ma_slow}d MA'] = results['MA_Slow']
+                    
+                    # Use st.line_chart with the new DataFrame
+                    st.line_chart(plot_df)
                     
                     # Create trade summary
                     st.subheader("Trade Summary")
