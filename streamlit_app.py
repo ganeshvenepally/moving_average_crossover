@@ -26,6 +26,18 @@ def fetch_data(ticker, start_date, end_date):
     """Fetch data for a single ticker"""
     try:
         data = yf.download(ticker, start=start_date, end=end_date, progress=False)
+        if data.empty:
+            return pd.DataFrame()
+        
+        # Ensure we have the close price column
+        if 'Close' in data.columns:
+            data['Price'] = data['Close']
+        elif 'Adj Close' in data.columns:
+            data['Price'] = data['Adj Close']
+        else:
+            st.error("Unable to find price data in the downloaded dataset")
+            return pd.DataFrame()
+            
         return data
     except Exception as e:
         st.error(f"Error fetching data for {ticker}: {str(e)}")
@@ -34,8 +46,8 @@ def fetch_data(ticker, start_date, end_date):
 def calculate_signals(df, ma_fast, ma_slow):
     """Calculate moving averages and generate entry/exit signals"""
     # Calculate moving averages using pandas rolling
-    df['MA_Fast'] = df['Adj Close'].rolling(window=ma_fast).mean()
-    df['MA_Slow'] = df['Adj Close'].rolling(window=ma_slow).mean()
+    df['MA_Fast'] = df['Price'].rolling(window=ma_fast).mean()
+    df['MA_Slow'] = df['Price'].rolling(window=ma_slow).mean()
     
     # Initialize signals and positions
     df['Signal'] = 0  # 0: no signal, 1: buy, -1: sell
@@ -62,7 +74,7 @@ def calculate_returns(df):
     df = df.copy()
     
     # Calculate daily returns
-    df['Daily_Return'] = df['Adj Close'].pct_change()
+    df['Daily_Return'] = df['Price'].pct_change()
     
     # Calculate strategy returns
     df['Strategy_Return'] = df['Daily_Return'] * df['Position'].shift(1)
@@ -90,10 +102,10 @@ def analyze_trades(df, market):
     
     for date, row in df.iterrows():
         if row['Trade_Entry']:
-            entry_price = row['Adj Close']
+            entry_price = row['Price']
             entry_date = date
         elif row['Trade_Exit'] and entry_price is not None:
-            exit_price = row['Adj Close']
+            exit_price = row['Price']
             
             # Calculate trade metrics
             trade_return = (exit_price - entry_price) / entry_price * 100
@@ -101,8 +113,8 @@ def analyze_trades(df, market):
             
             # Get trade period data for additional metrics
             trade_period = df.loc[entry_date:date]
-            high_price = trade_period['Adj Close'].max()
-            low_price = trade_period['Adj Close'].min()
+            high_price = trade_period['Price'].max()
+            low_price = trade_period['Price'].min()
             
             trades.append({
                 'Entry_Date': entry_date,
@@ -121,14 +133,14 @@ def analyze_trades(df, market):
     # Add last open position if exists
     if entry_price is not None:
         last_date = df.index[-1]
-        last_price = df['Adj Close'].iloc[-1]
+        last_price = df['Price'].iloc[-1]
         trades.append({
             'Entry_Date': entry_date,
             'Exit_Date': "Open",
             'Entry_Price': f"{currency_symbol}{entry_price:.2f}",
             'Exit_Price': f"{currency_symbol}{last_price:.2f}",
-            'High_Price': f"{currency_symbol}{df['Adj Close'][entry_date:].max():.2f}",
-            'Low_Price': f"{currency_symbol}{df['Adj Close'][entry_date:].min():.2f}",
+            'High_Price': f"{currency_symbol}{df['Price'][entry_date:].max():.2f}",
+            'Low_Price': f"{currency_symbol}{df['Price'][entry_date:].min():.2f}",
             'Return': (last_price - entry_price) / entry_price * 100,
             'Holding_Period': (last_date - entry_date).days / 30.44,
             'MA_Fast_Entry': df['MA_Fast'].iloc[-1],
@@ -178,6 +190,9 @@ def main():
             if df.empty:
                 st.error(f"No data available for {ticker}")
                 return
+                
+            # Show data columns (for debugging)
+            st.write("Available data columns:", df.columns.tolist())
             
             # Calculate signals and returns
             df = calculate_signals(df, ma_fast, ma_slow)
@@ -208,7 +223,7 @@ def main():
             # Plot price and moving averages
             st.subheader("Price and Moving Averages")
             chart_data = pd.DataFrame({
-                'Price': df['Adj Close'],
+                'Price': df['Price'],
                 f'{ma_fast}d MA': df['MA_Fast'],
                 f'{ma_slow}d MA': df['MA_Slow']
             })
