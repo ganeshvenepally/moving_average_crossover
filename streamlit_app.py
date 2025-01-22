@@ -45,28 +45,30 @@ def fetch_data(ticker, start_date, end_date):
 
 def calculate_signals(df, ma_fast, ma_slow):
     """Calculate moving averages and generate entry/exit signals"""
+    df = df.copy()
+    
     # Calculate moving averages using pandas rolling
     df['MA_Fast'] = df['Price'].rolling(window=ma_fast).mean()
     df['MA_Slow'] = df['Price'].rolling(window=ma_slow).mean()
     
     # Initialize signals and positions
-    df['Signal'] = 0  # 0: no signal, 1: buy, -1: sell
-    df['Position'] = 0  # 0: no position, 1: in position
+    df['Position'] = 0
     
     # Generate positions based on MA crossover
-    position = 0
-    positions = []
+    conditions = [
+        (df['MA_Fast'] > df['MA_Slow']) & (df['MA_Fast'].shift(1) <= df['MA_Slow'].shift(1)),  # Entry
+        (df['MA_Fast'] < df['MA_Slow']) & (df['MA_Fast'].shift(1) >= df['MA_Slow'].shift(1))   # Exit
+    ]
+    choices = [1, -1]
+    df['Signal'] = np.select(conditions, choices, default=0)
     
-    for i in range(len(df)):
-        if pd.notna(df['MA_Fast'].iloc[i]) and pd.notna(df['MA_Slow'].iloc[i]):
-            if df['MA_Fast'].iloc[i] > df['MA_Slow'].iloc[i] and position == 0:
-                position = 1  # Enter position
-            elif df['MA_Fast'].iloc[i] < df['MA_Slow'].iloc[i] and position == 1:
-                position = 0  # Exit position
-                
-        positions.append(position)
+    # Calculate positions
+    df['Position'] = df['Signal'].cumsum().clip(lower=0, upper=1)
     
-    df['Position'] = positions
+    # Mark trade entries and exits
+    df['Trade_Entry'] = df['Position'].diff() == 1
+    df['Trade_Exit'] = df['Position'].diff() == -1
+    
     return df
 
 def calculate_returns(df):
@@ -86,66 +88,50 @@ def calculate_returns(df):
     df['Peak'] = df['Cumulative_Return'].expanding().max()
     df['Drawdown'] = (df['Cumulative_Return'] - df['Peak']) / df['Peak'] * 100
     
-    # Mark trade entries and exits
-    df['Trade_Entry'] = df['Position'].diff() == 1
-    df['Trade_Exit'] = df['Position'].diff() == -1
-    
     return df
 
 def analyze_trades(df, market):
-    """Analyze individual trades and calculate statistics"""
+    """Analyze individual trades and calculate statistics with fixed boolean operations"""
     trades = []
-    entry_price = None
-    entry_date = None
+    df = df.copy()
+    
+    # Get entry and exit points
+    entry_dates = df.index[df['Trade_Entry']].tolist()
+    exit_dates = df.index[df['Trade_Exit']].tolist()
+    
+    # Add the last date as exit if we're still in a position
+    if len(entry_dates) > len(exit_dates):
+        exit_dates.append(df.index[-1])
     
     currency_symbol = "₹" if market == "India" else "$"
     
-    for date, row in df.iterrows():
-        if row['Trade_Entry']:
-            entry_price = row['Price']
-            entry_date = date
-        elif row['Trade_Exit'] and entry_price is not None:
-            exit_price = row['Price']
-            
-            # Calculate trade metrics
-            trade_return = (exit_price - entry_price) / entry_price * 100
-            holding_period = (date - entry_date).days / 30.44  # Convert days to months
-            
-            # Get trade period data for additional metrics
-            trade_period = df.loc[entry_date:date]
-            high_price = trade_period['Price'].max()
-            low_price = trade_period['Price'].min()
-            
-            trades.append({
-                'Entry_Date': entry_date,
-                'Exit_Date': date,
-                'Entry_Price': f"{currency_symbol}{entry_price:.2f}",
-                'Exit_Price': f"{currency_symbol}{exit_price:.2f}",
-                'High_Price': f"{currency_symbol}{high_price:.2f}",
-                'Low_Price': f"{currency_symbol}{low_price:.2f}",
-                'Return': trade_return,
-                'Holding_Period': holding_period,
-                'MA_Fast_Entry': row['MA_Fast'],
-                'MA_Slow_Entry': row['MA_Slow']
-            })
-            entry_price = None
-    
-    # Add last open position if exists
-    if entry_price is not None:
-        last_date = df.index[-1]
-        last_price = df['Price'].iloc[-1]
-        trades.append({
+    # Process each trade
+    for entry_date, exit_date in zip(entry_dates, exit_dates):
+        entry_price = df.loc[entry_date, 'Price']
+        exit_price = df.loc[exit_date, 'Price']
+        
+        # Get trade period data
+        trade_period = df.loc[entry_date:exit_date]
+        high_price = trade_period['Price'].max()
+        low_price = trade_period['Price'].min()
+        
+        # Calculate trade metrics
+        trade_return = (exit_price - entry_price) / entry_price * 100
+        holding_period = (exit_date - entry_date).days / 30.44  # Convert to months
+        
+        trade_data = {
             'Entry_Date': entry_date,
-            'Exit_Date': "Open",
+            'Exit_Date': exit_date if exit_date != df.index[-1] else "Open",
             'Entry_Price': f"{currency_symbol}{entry_price:.2f}",
-            'Exit_Price': f"{currency_symbol}{last_price:.2f}",
-            'High_Price': f"{currency_symbol}{df['Price'][entry_date:].max():.2f}",
-            'Low_Price': f"{currency_symbol}{df['Price'][entry_date:].min():.2f}",
-            'Return': (last_price - entry_price) / entry_price * 100,
-            'Holding_Period': (last_date - entry_date).days / 30.44,
-            'MA_Fast_Entry': df['MA_Fast'].iloc[-1],
-            'MA_Slow_Entry': df['MA_Slow'].iloc[-1]
-        })
+            'Exit_Price': f"{currency_symbol}{exit_price:.2f}",
+            'High_Price': f"{currency_symbol}{high_price:.2f}",
+            'Low_Price': f"{currency_symbol}{low_price:.2f}",
+            'Return': trade_return,
+            'Holding_Period': holding_period,
+            'MA_Fast_Entry': df.loc[entry_date, 'MA_Fast'],
+            'MA_Slow_Entry': df.loc[entry_date, 'MA_Slow']
+        }
+        trades.append(trade_data)
     
     return pd.DataFrame(trades)
 
@@ -190,9 +176,6 @@ def main():
             if df.empty:
                 st.error(f"No data available for {ticker}")
                 return
-                
-            # Show data columns (for debugging)
-            st.write("Available data columns:", df.columns.tolist())
             
             # Calculate signals and returns
             df = calculate_signals(df, ma_fast, ma_slow)
