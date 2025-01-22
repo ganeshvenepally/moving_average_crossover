@@ -44,13 +44,16 @@ def analyze_ma_strategy(data, ma_fast, ma_slow):
     df['MA_Fast'] = df['Close'].rolling(window=ma_fast).mean()
     df['MA_Slow'] = df['Close'].rolling(window=ma_slow).mean()
     
-    # Calculate signals
-    df['Position'] = 0
-    df.loc[df['MA_Fast'] > df['MA_Slow'], 'Position'] = 1
+    # Calculate signals and positions
+    df['Signal'] = 0
+    df.loc[df['MA_Fast'] > df['MA_Slow'], 'Signal'] = 1
+    df.loc[df['MA_Fast'] < df['MA_Slow'], 'Signal'] = -1
+    df['Position'] = df['Signal'].shift(1)
+    df['Position'] = df['Position'].fillna(0)
     
     # Calculate returns
     df['Returns'] = df['Close'].pct_change()
-    df['Strategy_Returns'] = df['Position'].shift(1) * df['Returns']
+    df['Strategy_Returns'] = df['Position'] * df['Returns']
     
     # Calculate cumulative returns
     df['Cumulative_Returns'] = (1 + df['Strategy_Returns']).cumprod()
@@ -58,6 +61,11 @@ def analyze_ma_strategy(data, ma_fast, ma_slow):
     # Calculate drawdown
     df['Peak'] = df['Cumulative_Returns'].expanding().max()
     df['Drawdown'] = (df['Cumulative_Returns'] - df['Peak']) / df['Peak'] * 100
+    
+    # Identify trade entry and exit points
+    df['Position_Change'] = df['Position'].diff()
+    df['Trade_Entry'] = df['Position_Change'] == 1
+    df['Trade_Exit'] = df['Position_Change'] == -1
     
     return df
 
@@ -70,9 +78,8 @@ def get_performance_metrics(df):
     max_drawdown = df['Drawdown'].min()
     
     # Calculate trade statistics
-    df['Trade_Signal'] = df['Position'].diff()
-    trades = len(df[df['Trade_Signal'] != 0])
-    winning_trades = len(df[(df['Trade_Signal'] != 0) & (df['Strategy_Returns'] > 0)])
+    trades = len(df[df['Position_Change'] != 0])
+    winning_trades = len(df[(df['Position_Change'] != 0) & (df['Strategy_Returns'] > 0)])
     win_rate = (winning_trades / trades * 100) if trades > 0 else 0
     
     return {
@@ -81,6 +88,49 @@ def get_performance_metrics(df):
         'Number of Trades': trades,
         'Win Rate': f"{win_rate:.2f}%"
     }
+
+def create_trade_summary(df):
+    """Create trade summary DataFrame"""
+    trades = []
+    entry_price = None
+    entry_date = None
+    
+    for idx, row in df.iterrows():
+        # Entry signal
+        if row['Trade_Entry']:
+            entry_date = idx
+            entry_price = row['Close']
+        # Exit signal
+        elif row['Trade_Exit'] and entry_price is not None:
+            exit_price = row['Close']
+            trade_return = ((exit_price - entry_price) / entry_price) * 100
+            trades.append({
+                'Entry Date': entry_date.strftime('%Y-%m-%d'),
+                'Exit Date': idx.strftime('%Y-%m-%d'),
+                'Entry Price': f"${entry_price:.2f}",
+                'Exit Price': f"${exit_price:.2f}",
+                'Return (%)': f"{trade_return:.2f}%",
+                'Fast MA': f"${row['MA_Fast']:.2f}",
+                'Slow MA': f"${row['MA_Slow']:.2f}"
+            })
+            entry_price = None
+    
+    # Handle open position
+    if entry_price is not None:
+        last_row = df.iloc[-1]
+        exit_price = last_row['Close']
+        trade_return = ((exit_price - entry_price) / entry_price) * 100
+        trades.append({
+            'Entry Date': entry_date.strftime('%Y-%m-%d'),
+            'Exit Date': 'Open',
+            'Entry Price': f"${entry_price:.2f}",
+            'Exit Price': f"${exit_price:.2f}",
+            'Return (%)': f"{trade_return:.2f}%",
+            'Fast MA': f"${last_row['MA_Fast']:.2f}",
+            'Slow MA': f"${last_row['MA_Slow']:.2f}"
+        })
+    
+    return pd.DataFrame(trades) if trades else pd.DataFrame()
 
 def main():
     st.set_page_config(layout="wide")
@@ -137,31 +187,19 @@ def main():
                         for i, (metric, value) in enumerate(metrics.items()):
                             cols[i].metric(metric, value)
                     
-                    # Plot price and moving averages using native pandas plotting
+                    # Plot price and moving averages
                     st.subheader("Price and Moving Averages")
-                    
-                    # Create a new DataFrame with the required columns
                     plot_df = pd.DataFrame(index=results.index)
                     plot_df['Price'] = results['Close']
                     plot_df[f'{ma_fast}d MA'] = results['MA_Fast']
                     plot_df[f'{ma_slow}d MA'] = results['MA_Slow']
-                    
-                    # Use st.line_chart with the new DataFrame
                     st.line_chart(plot_df)
                     
-                    # Create trade summary
+                    # Create and display trade summary
                     st.subheader("Trade Summary")
-                    trade_signals = results[results['Trade_Signal'] != 0].copy()
+                    trade_summary = create_trade_summary(results)
                     
-                    if not trade_signals.empty:
-                        trade_summary = pd.DataFrame({
-                            'Date': trade_signals.index,
-                            'Type': trade_signals['Trade_Signal'].map({1: 'Buy', -1: 'Sell'}),
-                            'Price': trade_signals['Close'].round(2),
-                            'Fast MA': trade_signals['MA_Fast'].round(2),
-                            'Slow MA': trade_signals['MA_Slow'].round(2),
-                            'Return (%)': (trade_signals['Strategy_Returns'] * 100).round(2)
-                        })
+                    if not trade_summary.empty:
                         st.dataframe(trade_summary)
                         
                         # Add download buttons
